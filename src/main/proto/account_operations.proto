@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+package com.trustbank.client_mobile.proto;
+//option java_outer_classname = "AccountOperationsProto";
+
+//package account_operations;
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloResponse {
+  string message = 1;
+}
+
+service AccountOperationsService {
+  rpc HelloWorld (HelloRequest) returns (HelloResponse) {}
+
+  rpc GetAccounts (GetAccountsRequest) returns (stream Account) {}
+
+  rpc OpenNewAccount (OpenAccountRequest) returns (OperationResponse) {}
+
+  rpc CloseAccount (CloseAccountRequest) returns (OperationResponse) {}
+
+  // Взятие кредита
+  // Погашение кредита
+
+  rpc DepositMoney (MoneyOperation) returns (OperationResponse) {}
+
+  rpc WithdrawMoney (MoneyOperation) returns (OperationResponse) {}
+
+  rpc GetHistoryOfAccount (GetHistoryOfAccountRequest) returns (stream Transaction) {}
+
+}
+
+message GetAccountsRequest{
+  string userId = 1;
+}
+
+message OperationResponse {
+  bool success = 1;
+}
+
+message OpenAccountRequest{
+  string userId = 1;
+}
+
+message CloseAccountRequest{
+  string userId = 1;
+  string accountId = 2;
+}
+
+message MoneyOperation{
+  string accountId = 1;
+  string userId = 2;
+  int64 amount = 3;
+}
+
+message Transaction{
+  string id = 1;
+  google.protobuf.Timestamp date = 2;
+  Account payer = 3;
+  Account payee = 4;
+  int64 amount = 5;
+}
+
+message GetHistoryOfAccountRequest{
+  string userId = 1;
+  string accountId = 2;
+}
+
+message Account{
+  string id = 1;
+  google.protobuf.Timestamp creationDate = 2;
+  google.protobuf.Timestamp closingDate = 3;
+  int64 balance = 4;
+  string ownerFullName = 5;
+  Client owner = 6;
+}
+
+
+message Client{
+  string id = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string patronymic = 4;
+  string phoneNumber = 5;
+  string address = 6;
+  string passportNumber = 7;
+  string passportSeries = 8;
+  bool isBlocked = 9;
+  Officer whoBlocked = 10;
+  Officer whoCreated = 11;
+}
+
+message Officer{
+  string id = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string patronymic = 4;
+  string phoneNumber = 5;
+  string address = 6;
+  string passportNumber = 7;
+  string passportSeries = 8;
+  bool isBlocked = 9;
+  Officer whoBlocked = 10;
+  Officer whoCreated = 11;
+}
