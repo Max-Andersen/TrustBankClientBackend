@@ -19,6 +19,8 @@ message HelloResponse {
 service AccountOperationsService {
   rpc HelloWorld (HelloRequest) returns (HelloResponse) {}
 
+  rpc Login (LoginRequest) returns (Client) {}
+
   rpc GetAccounts (GetAccountsRequest) returns (stream Account) {}
 
   rpc OpenNewAccount (OpenAccountRequest) returns (OperationResponse) {}
@@ -34,6 +36,11 @@ service AccountOperationsService {
 
   rpc GetHistoryOfAccount (GetHistoryOfAccountRequest) returns (stream Transaction) {}
 
+}
+
+message LoginRequest{
+  string login = 1;
+  string password = 2;
 }
 
 message GetAccountsRequest{
@@ -80,7 +87,6 @@ message Account{
   string ownerFullName = 5;
   Client owner = 6;
 }
-
 
 message Client{
   string id = 1;

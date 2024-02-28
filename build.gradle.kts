@@ -66,6 +66,8 @@ dependencies {
 
     implementation("net.devh:grpc-client-spring-boot-starter:2.12.0.RELEASE")
     compileOnly("jakarta.annotation:jakarta.annotation-api:1.3.5")
+
+    implementation("org.springframework.boot:spring-boot-starter-security")
 }
 
 tasks.withType<KotlinCompile> {
