@@ -2,7 +2,9 @@ package com.trb_client.backend
 
 import com.google.protobuf.Timestamp
 import com.trb_client.backend.domain.CoreRequestRepository
+import com.trb_client.backend.models.AccountType
 import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
+import com.trb_client.backend.models.response.TransactionHistoryPage
 import com.trustbank.client_mobile.proto.*
 import io.grpc.Server
 import io.grpc.ServerBuilder
@@ -34,6 +36,17 @@ class AccountOperationService(
     val authenticationManager: AuthenticationManager,
     val coreRequestRepository: CoreRequestRepository,
 ) : AccountOperationsServiceGrpc.AccountOperationsServiceImplBase() {
+
+    /**
+     *
+     * user
+     * 173ea10f-0915-4c47-a8a3-d293f0aa24bc
+     *
+     *
+     * accounts
+     * 2a149215-7f21-4bf3-966f-6d56cb3c00f6
+     *
+     */
 
     override fun login(request: LoginRequest, responseObserver: StreamObserver<Client>) {
         val clientId = coreRequestRepository.credentials.getOrDefault(request, null)
@@ -91,78 +104,107 @@ class AccountOperationService(
 
 
     override fun openNewAccount(request: OpenAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
-        val client = coreRequestRepository.users.find { it.id == request.userId }
-        client?.let {
-            val account = Account.newBuilder()
-                .setId((coreRequestRepository.accounts.size + 1).toString())
-                .setOwner(client)
-                .setBalance(0)
-                .setCreationDate(Timestamp.newBuilder().setSeconds(1709124966))
-                .build()
-            coreRequestRepository.accounts.add(account)
-            println(coreRequestRepository.accounts.size)
+        try {
+            coreRequestRepository.createAccount(
+                UUID.fromString(request.userId),
+                "Иванов Иван Иванович", // TODO в сервис пользователей
+                AccountType.DEPOSIT
+            )
+
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
-        } ?: responseObserver.onError(NOT_FOUND.withDescription("Пользователь не найден").asRuntimeException())
+        } catch (e: Exception) {
+            responseObserver.onError(INTERNAL.withDescription("Ошибка создания аккаунта").asRuntimeException())
+        }
     }
 
     override fun closeAccount(request: CloseAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
-        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
-        account?.let {
-            coreRequestRepository.accounts.remove(account)
+        try {
+            coreRequestRepository.closeAccount(UUID.fromString(request.accountId))
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
-        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
+        } catch (e: Exception) {
+            responseObserver.onError(INTERNAL.withDescription("Ошибка закрытия аккаунта").asRuntimeException())
+        }
     }
 
 
     override fun depositMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
-        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
-        account?.let {
-            val newBalance = it.balance + request.amount
-            coreRequestRepository.accounts.add(
-                coreRequestRepository.accounts.indexOf(account),
-                account.toBuilder().setBalance(newBalance).build()
-            )
+        try {
+            coreRequestRepository.depositMoney(UUID.fromString(request.accountId), request.amount)
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
-        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
+        } catch (e: Exception) {
+            responseObserver.onError(INTERNAL.withDescription("Ошибка пополнения счета").asRuntimeException())
+        }
     }
 
     override fun withdrawMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
-        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
-        account?.let {
-            val newBalance = it.balance - request.amount
-            if (newBalance >= 0) {
-                coreRequestRepository.accounts.add(
-                    coreRequestRepository.accounts.indexOf(account),
-                    account.toBuilder().setBalance(newBalance).build()
-                )
-                responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
-                responseObserver.onCompleted()
-            } else {
-                responseObserver.onError(CANCELLED.withDescription("Недостаточно средств").asRuntimeException())
-            }
-        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
+
+        try {
+            coreRequestRepository.withdrawMoney(UUID.fromString(request.accountId), request.amount)
+            responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(INTERNAL.withDescription("Ошибка снятия средств").asRuntimeException())
+        }
+
+//        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
+//        account?.let {
+//            val newBalance = it.balance - request.amount
+//            if (newBalance >= 0) {
+//                coreRequestRepository.accounts.add(
+//                    coreRequestRepository.accounts.indexOf(account),
+//                    account.toBuilder().setBalance(newBalance).build()
+//                )
+//                responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
+//                responseObserver.onCompleted()
+//            } else {
+//                responseObserver.onError(CANCELLED.withDescription("Недостаточно средств").asRuntimeException())
+//            }
+//        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
     }
 
     override fun getHistoryOfAccount(
         request: GetHistoryOfAccountRequest,
-        responseObserver: StreamObserver<Transaction>
+        responseObserver: StreamObserver<com.trustbank.client_mobile.proto.TransactionHistoryPage>
     ) {
-        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
-        account?.let {
-            val transactions = mutableListOf(
-                Transaction.newBuilder()
-                    .setAmount(100)
-                    .setDate(Timestamp.newBuilder().setSeconds(1709124966))
-                    .build()
+        try {
+            val page = coreRequestRepository.getAccountHistory(
+                UUID.fromString(request.accountId),
+                request.pageNumber,
+                request.pageSize
             )
-            transactions.forEach {
-                responseObserver.onNext(it)
-            }
+            responseObserver.onNext(
+                com.trustbank.client_mobile.proto.TransactionHistoryPage.newBuilder().setPageNumber(page.pageNumber)
+                    .setPageSize(page.pageSize).setPageNumber(page.pageNumber)
+                    .addAllElements(page.elements.map {
+                        Transaction.newBuilder()
+                            .setAmount(it.amount)
+                            .setDate(Timestamp.newBuilder().setSeconds(it.date?.toInstant()?.epochSecond ?: 0L))
+                            .build()
+                    }).build()
+            )
             responseObserver.onCompleted()
-        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
+        } catch (e: Exception) {
+            responseObserver.onError(INTERNAL.withDescription("Ошибка получения истории операций").asRuntimeException())
+        }
+
+
+
+//        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
+//        account?.let {
+//            val transactions = mutableListOf(
+//                Transaction.newBuilder()
+//                    .setAmount(100)
+//                    .setDate(Timestamp.newBuilder().setSeconds(1709124966))
+//                    .build()
+//            )
+//            transactions.forEach {
+//                responseObserver.onNext(it)
+//            }
+//            responseObserver.onCompleted()
+//        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
     }
 
     override fun helloWorld(request: HelloRequest, responseObserver: StreamObserver<HelloResponse>) {

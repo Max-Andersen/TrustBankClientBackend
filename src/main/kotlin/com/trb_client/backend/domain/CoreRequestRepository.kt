@@ -5,10 +5,13 @@ import com.trb_client.backend.models.AccountType
 import com.trb_client.backend.models.request.NewAccountRequest
 import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
 import com.trb_client.backend.models.response.AccountResponse
+import com.trb_client.backend.models.response.TransactionHistoryPage
 import com.trustbank.client_mobile.proto.Account
 import com.trustbank.client_mobile.proto.Client
 import com.trustbank.client_mobile.proto.LoginRequest
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.toEntity
+import java.awt.PageAttributes
 import java.util.*
 
 class CoreRequestRepository(
@@ -106,13 +109,12 @@ class CoreRequestRepository(
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
                 // TODO проверить всё
-                return it.body ?: throw Exception("Account not created")
+                return it.body ?: throw Exception("Account not found")
             }
         }
 
         throw Exception("Response is null or not successful")
     }
-
 
     fun closeAccount(accountId: UUID): Boolean {
         val url = "/api/v1/accounts/$accountId"
@@ -121,6 +123,27 @@ class CoreRequestRepository(
 
         response?.let {
             return it.statusCode.is2xxSuccessful
+        }
+
+        throw Exception("Response is null or not successful")
+    }
+
+    fun getAccountHistory(accountId: UUID, page: Int, pageSize: Int): TransactionHistoryPage {
+        val url = "/api/v1/accounts/$accountId/history"
+        val response =
+            webClient.get().uri { uriBuilder ->
+                uriBuilder
+                    .path(url)
+                    .queryParam("page", page)
+                    .queryParam("size", pageSize)
+                    .build()
+            }.exchangeToMono { it.toEntity(TransactionHistoryPage::class.java) }.block()
+
+        response?.let {
+            if (it.statusCode.is2xxSuccessful) {
+                // TODO проверить всё
+                return it.body ?: throw Exception("Account not found")
+            }
         }
 
         throw Exception("Response is null or not successful")
