@@ -1,13 +1,17 @@
 package com.trb_client.backend
 
 import com.google.protobuf.Timestamp
+import com.trb_client.backend.domain.CoreRequestRepository
+import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
 import com.trustbank.client_mobile.proto.*
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import io.grpc.Status.*
 import io.grpc.stub.StreamObserver
 import net.devh.boot.grpc.server.service.GrpcService
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
+import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -21,57 +25,91 @@ import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.provisioning.InMemoryUserDetailsManager
+import org.springframework.web.reactive.function.client.WebClient
+import java.util.UUID
 
 
 @GrpcService
 class AccountOperationService(
     val authenticationManager: AuthenticationManager,
-    val coreRequest: CoreRequest
+    val coreRequestRepository: CoreRequestRepository,
 ) : AccountOperationsServiceGrpc.AccountOperationsServiceImplBase() {
 
-
     override fun login(request: LoginRequest, responseObserver: StreamObserver<Client>) {
-        val clientId = coreRequest.credentials.getOrDefault(request, null)
+        val clientId = coreRequestRepository.credentials.getOrDefault(request, null)
         println(clientId)
         clientId?.let {
-            responseObserver.onNext(coreRequest.users.find { it.id == clientId })
+            responseObserver.onNext(coreRequestRepository.users.find { it.id == clientId })
             responseObserver.onCompleted()
         } ?: responseObserver.onError(UNAUTHENTICATED.asRuntimeException())
     }
 
     override fun getAccounts(request: GetAccountsRequest, responseObserver: StreamObserver<Account>) {
-        val accounts = coreRequest.accounts.filter { it.owner.id == request.userId }
+        val accounts = coreRequestRepository.getClientAccounts(UUID.fromString(request.userId))
 
-        if (accounts.isEmpty()) {
-            responseObserver.onError(NOT_FOUND.withDescription("Аккаунты не найдены").asRuntimeException())
-        } else {
-            accounts.forEach {
-                responseObserver.onNext(it)
-            }
-            responseObserver.onCompleted()
+        val owner: Client? =
+            if (accounts.isNotEmpty())
+                Client.newBuilder()
+                    .setFirstName(accounts.first().clientFullName)
+                    .setId(accounts.first().externalClientId.toString())
+                    .build()
+            else null
+
+        accounts.forEach {
+            val account = Account.newBuilder()
+                .setId(it.id.toString())
+                .setOwner(owner)
+                .setBalance(it.balance)
+                .setCreationDate(Timestamp.newBuilder().setSeconds(it.creationDate?.toInstant()?.epochSecond ?: 0))
+                .setClosingDate(Timestamp.newBuilder().setSeconds(it.closingDate?.toInstant()?.epochSecond ?: 0))
+                .setOwnerFullName(it.clientFullName)
+                .build()
+            responseObserver.onNext(account)
         }
+        responseObserver.onCompleted()
     }
 
+    override fun getAccountInfo(request: GetAccountInfoRequest, responseObserver: StreamObserver<Account>) {
+        val account = coreRequestRepository.getAccountInfo(UUID.fromString(request.accountId))
+
+        val accountResponse = Account.newBuilder()
+            .setId(account.id.toString())
+            .setOwner(
+                Client.newBuilder()
+                    .setId(account.externalClientId.toString())
+                    .setFirstName(account.clientFullName)
+                    .build()
+            )
+            .setBalance(account.balance)
+            .setCreationDate(Timestamp.newBuilder().setSeconds(account.creationDate?.toInstant()?.epochSecond ?: 0))
+            .setClosingDate(Timestamp.newBuilder().setSeconds(account.closingDate?.toInstant()?.epochSecond ?: 0))
+            .setOwnerFullName(account.clientFullName)
+            .build()
+        responseObserver.onNext(accountResponse)
+        responseObserver.onCompleted()
+    }
+
+
     override fun openNewAccount(request: OpenAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
-        val client = coreRequest.users.find { it.id == request.userId }
+        val client = coreRequestRepository.users.find { it.id == request.userId }
         client?.let {
             val account = Account.newBuilder()
-                .setId((coreRequest.accounts.size + 1).toString())
+                .setId((coreRequestRepository.accounts.size + 1).toString())
                 .setOwner(client)
                 .setBalance(0)
                 .setCreationDate(Timestamp.newBuilder().setSeconds(1709124966))
                 .build()
-            coreRequest.accounts.add(account)
-            println(coreRequest.accounts.size)
+            coreRequestRepository.accounts.add(account)
+            println(coreRequestRepository.accounts.size)
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
         } ?: responseObserver.onError(NOT_FOUND.withDescription("Пользователь не найден").asRuntimeException())
     }
 
     override fun closeAccount(request: CloseAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
-        val account = coreRequest.accounts.find { it.id == request.accountId }
+        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
         account?.let {
-            coreRequest.accounts.remove(account)
+            coreRequestRepository.accounts.remove(account)
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
         } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
@@ -79,23 +117,27 @@ class AccountOperationService(
 
 
     override fun depositMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
-        val account = coreRequest.accounts.find { it.id == request.accountId }
+        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
         account?.let {
             val newBalance = it.balance + request.amount
-            coreRequest.accounts.remove(account)
-            coreRequest.accounts.add(account.toBuilder().setBalance(newBalance).build())
+            coreRequestRepository.accounts.add(
+                coreRequestRepository.accounts.indexOf(account),
+                account.toBuilder().setBalance(newBalance).build()
+            )
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
         } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
     }
 
     override fun withdrawMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
-        val account = coreRequest.accounts.find { it.id == request.accountId }
+        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
         account?.let {
             val newBalance = it.balance - request.amount
-            if (newBalance>=0) {
-                coreRequest.accounts.remove(account)
-                coreRequest.accounts.add(account.toBuilder().setBalance(newBalance).build())
+            if (newBalance >= 0) {
+                coreRequestRepository.accounts.add(
+                    coreRequestRepository.accounts.indexOf(account),
+                    account.toBuilder().setBalance(newBalance).build()
+                )
                 responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
                 responseObserver.onCompleted()
             } else {
@@ -108,7 +150,7 @@ class AccountOperationService(
         request: GetHistoryOfAccountRequest,
         responseObserver: StreamObserver<Transaction>
     ) {
-        val account = coreRequest.accounts.find { it.id == request.accountId }
+        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
         account?.let {
             val transactions = mutableListOf(
                 Transaction.newBuilder()
@@ -134,16 +176,16 @@ class AccountOperationService(
             authenticationManager.authenticate(authenticationRequest)
 
 
-        responseObserver.onNext(
-            HelloResponse.newBuilder().setMessage("${authenticationResponse.isAuthenticated}").build()
-        )
-        responseObserver.onCompleted()
-
-
-//        responseObserver.onError(
-//            NOT_FOUND.withDescription("This pet with id = " + request.name + " is not found")
-//                .asRuntimeException()
+//        responseObserver.onNext(
+//            HelloResponse.newBuilder().setMessage("${authenticationResponse.isAuthenticated}").build()
 //        )
+//        responseObserver.onCompleted()
+
+
+        responseObserver.onError(
+            NOT_FOUND.withDescription("This pet with id = " + request.name + " is not found")
+                .asRuntimeException()
+        )
 
 //        responseObserver.onError(Throwable("Error"))
 
@@ -162,58 +204,44 @@ class AccountOperationService(
 }
 
 
-class CoreRequest {
-    val users = mutableListOf(
-        run {
-            val builder = Client.newBuilder()
-            builder
-                .setId("999")
-                .setFirstName("user")
-                .setLastName("userov")
-                .setPatronymic("userovich")
-                .setPhoneNumber("1234567890")
-                .setAddress("ylitsa pushkina dom kolotushkina")
-                .setPassportNumber("69139999")
-                .setPassportSeries("999999")
-                .setIsBlocked(false)
-            builder.build()
-        }
-    )
-
-    val credentials = mutableMapOf(
-        LoginRequest.newBuilder().setLogin("user").setPassword("password").build() to "999"
-    )
-
-    val accounts = mutableListOf(
-        run {
-            Timestamp.newBuilder().setSeconds(1).build()
-
-            val builder = Account.newBuilder()
-            builder.id = 1.toString()
-            builder.owner = users.find { it.id == "999" }
-            builder.balance = 1000L
-            builder.creationDateBuilder.setSeconds(1709124966)
-            builder.build()
-        }
-    )
-}
+/**
+ *         val accountId = "a4a3674b-4332-4264-81c6-fd812b353639"
+ *         val url = "/api/v1/accounts/$accountId"
+ *         val response = webClient.get()
+ *             .uri(url)
+ *             .retrieve()
+ *             .bodyToMono(String::class.java)
+ *             .block()
+ *
+ *         println(response)
+ */
 
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig {
+class SecurityConfig : ApplicationContextAware {
 
-    //    @Bean
-//    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
-//        http {
-//            authorizeHttpRequests {
-//                authorize("/login", permitAll)
-//                authorize(anyRequest, authenticated)
-//            }
-//        }
-//
-//        return http.build()
-//    }
+    private lateinit var context: ApplicationContext
+
+    override fun setApplicationContext(applicationContext: ApplicationContext) {
+        context = applicationContext
+    }
+
+    @Bean
+    fun webClientBuilder(): WebClient.Builder {
+        return WebClient.builder()
+    }
+
+    @Bean
+    fun webClient(builder: WebClient.Builder): WebClient {
+        return builder.baseUrl("http://localhost:8080").build()
+    }
+
+    @Bean
+    fun coreRequest(): CoreRequestRepository {
+        val webClient = context.getBean(WebClient::class.java)
+        return CoreRequestRepository(webClient)
+    }
 
 
     @Bean
@@ -244,6 +272,7 @@ class SecurityConfig {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder()
     }
 
+
 }
 
 class AccountOperationsServer(private val port: Int) {
@@ -252,8 +281,8 @@ class AccountOperationsServer(private val port: Int) {
     init {
         val context: ApplicationContext = AnnotationConfigApplicationContext(SecurityConfig::class.java)
         val authenticationManager = context.getBean(AuthenticationManager::class.java)
-        accountOperationService = AccountOperationService(authenticationManager, CoreRequest())
-        // Используйте accountOperationService
+        val coreRequestRepository = context.getBean(CoreRequestRepository::class.java)
+        accountOperationService = AccountOperationService(authenticationManager, coreRequestRepository)
     }
 
 

@@ -68,6 +68,7 @@ dependencies {
     compileOnly("jakarta.annotation:jakarta.annotation-api:1.3.5")
 
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
 }
 
 tasks.withType<KotlinCompile> {

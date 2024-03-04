@@ -23,6 +23,8 @@ service AccountOperationsService {
 
   rpc GetAccounts (GetAccountsRequest) returns (stream Account) {}
 
+  rpc GetAccountInfo (GetAccountInfoRequest) returns (Account) {}
+
   rpc OpenNewAccount (OpenAccountRequest) returns (OperationResponse) {}
 
   rpc CloseAccount (CloseAccountRequest) returns (OperationResponse) {}
@@ -45,6 +47,10 @@ message LoginRequest{
 
 message GetAccountsRequest{
   string userId = 1;
+}
+
+message GetAccountInfoRequest{
+  string accountId = 1;
 }
 
 message OperationResponse {
