@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+package com.trustbank.client_mobile.proto;
+
+service UserOperationService {
+  rpc Login (LoginRequest) returns (Client) {}
+}
+
+
+message LoginRequest{
+  string login = 1;
+  string password = 2;
+}
+
+message Client{
+  string id = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string patronymic = 4;
+  string phoneNumber = 5;
+  string address = 6;
+  string passportNumber = 7;
+  string passportSeries = 8;
+  bool isBlocked = 9;
+  Officer whoBlocked = 10;
+  Officer whoCreated = 11;
+}
+
+message Officer{
+  string id = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string patronymic = 4;
+  string phoneNumber = 5;
+  string address = 6;
+  string passportNumber = 7;
+  string passportSeries = 8;
+  bool isBlocked = 9;
+  Officer whoBlocked = 10;
+  Officer whoCreated = 11;
+}
+

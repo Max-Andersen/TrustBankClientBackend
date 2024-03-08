@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "account_operation.proto";
+
+option java_multiple_files = true;
+package com.trustbank.client_mobile.proto;
+
+service LoanOperationService{
+
+}

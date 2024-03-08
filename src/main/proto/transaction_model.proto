@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "account_model.proto";
+
+option java_multiple_files = true;
+package com.trustbank.client_mobile.proto;
+
+
+message MoneyOperation{
+  string accountId = 1;
+  int64 amount = 3;
+}
+
+message TransactionHistoryPage{
+  int32 pageNumber = 1;
+  int32 pageSize = 2;
+  repeated Transaction elements = 3;
+}
+
+message Transaction{
+  string id = 1;
+  google.protobuf.Timestamp date = 2;
+  Account payer = 3;
+  Account payee = 4;
+  int64 amount = 5;
+  TransactionType type = 6;
+  TransactionState state = 7;
+  TransactionCode code = 8;
+}
+
+
+enum TransactionType{
+  TRANSFER = 0;
+  REPLENISHMENT = 1;
+  WITHDRAWAL = 2;
+  LOAN_REPAYMENT = 3;
+  LOAN_PAYMENT = 4;
+}
+
+enum TransactionState{
+  DONE = 0;
+  REJECTED = 1;
+}
+
+enum TransactionCode {
+  SUCCESS = 0;
+  NOT_ENOUGH_MONEY = 1;
+}

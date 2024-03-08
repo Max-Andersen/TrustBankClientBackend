@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "transaction_model.proto";
+import "user_operation.proto";
+import "account_model.proto";
+
+option java_multiple_files = true;
+package com.trustbank.client_mobile.proto;
+//option java_outer_classname = "AccountOperationsProto";
+
+//package account_operations;
+
+service AccountOperationService {
+
+  rpc GetAccounts (GetAccountsRequest) returns (stream Account) {}
+
+  rpc GetAccountInfo (GetAccountInfoRequest) returns (Account) {}
+
+  rpc OpenNewAccount (OpenAccountRequest) returns (OperationResponse) {}
+
+  rpc CloseAccount (CloseAccountRequest) returns (OperationResponse) {}
+
+  rpc DepositMoney (MoneyOperation) returns (OperationResponse) {}
+
+  rpc WithdrawMoney (MoneyOperation) returns (OperationResponse) {}
+
+  rpc GetHistoryOfAccount (GetHistoryOfAccountRequest) returns (TransactionHistoryPage) {}
+
+}
+
+
+message GetAccountsRequest{}
+
+message GetAccountInfoRequest{
+  string accountId = 2;
+}
+
+message OperationResponse {
+  bool success = 1;
+}
+
+message OpenAccountRequest{}
+
+message CloseAccountRequest{
+  string accountId = 2;
+}
+
+
+message GetHistoryOfAccountRequest{
+  string accountId = 1;
+  int32 pageNumber = 2;
+  int32 pageSize = 3;
+}
+
+
+

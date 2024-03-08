@@ -1,17 +1,20 @@
 package com.trb_client.backend
 
 import com.google.protobuf.Timestamp
+import com.trb_client.backend.data.HeaderServerInterceptor
+import com.trb_client.backend.data.UserAuthorizingData
 import com.trb_client.backend.domain.CoreRequestRepository
+import com.trb_client.backend.domain.UserRequestRepository
+import com.trb_client.backend.mapper.toAccountGrpc
+import com.trb_client.backend.mapper.toClient
 import com.trb_client.backend.models.AccountType
-import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
-import com.trb_client.backend.models.response.TransactionHistoryPage
 import com.trustbank.client_mobile.proto.*
 import io.grpc.Server
 import io.grpc.ServerBuilder
+import io.grpc.ServerInterceptors
 import io.grpc.Status.*
 import io.grpc.stub.StreamObserver
 import net.devh.boot.grpc.server.service.GrpcService
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
@@ -35,6 +38,7 @@ import java.util.UUID
 class AccountOperationService(
     val authenticationManager: AuthenticationManager,
     val coreRequestRepository: CoreRequestRepository,
+    val userRequestRepository: UserRequestRepository
 ) : AccountOperationsServiceGrpc.AccountOperationsServiceImplBase() {
 
     /**
@@ -49,35 +53,26 @@ class AccountOperationService(
      */
 
     override fun login(request: LoginRequest, responseObserver: StreamObserver<Client>) {
-        val clientId = coreRequestRepository.credentials.getOrDefault(request, null)
-        println(clientId)
-        clientId?.let {
-            responseObserver.onNext(coreRequestRepository.users.find { it.id == clientId })
+        val clientInfo = userRequestRepository.login(request.login, request.password)
+        clientInfo?.let {
+            val client = it.toClient()
+            responseObserver.onNext(client)
             responseObserver.onCompleted()
         } ?: responseObserver.onError(UNAUTHENTICATED.asRuntimeException())
     }
 
     override fun getAccounts(request: GetAccountsRequest, responseObserver: StreamObserver<Account>) {
-        val accounts = coreRequestRepository.getClientAccounts(UUID.fromString(request.userId))
+        val userId = UserAuthorizingData.id.get()
+        val accounts = coreRequestRepository.getClientAccounts(UUID.fromString(userId))
 
         val owner: Client? =
             if (accounts.isNotEmpty())
-                Client.newBuilder()
-                    .setFirstName(accounts.first().clientFullName)
-                    .setId(accounts.first().externalClientId.toString())
-                    .build()
+                (userRequestRepository.getClientById(accounts.first().externalClientId.toString())
+                    ?: throw Exception("user not found")).toClient()
             else null
 
-        accounts.forEach {
-            val account = Account.newBuilder()
-                .setId(it.id.toString())
-                .setOwner(owner)
-                .setBalance(it.balance)
-                .setCreationDate(Timestamp.newBuilder().setSeconds(it.creationDate?.toInstant()?.epochSecond ?: 0))
-                .setClosingDate(Timestamp.newBuilder().setSeconds(it.closingDate?.toInstant()?.epochSecond ?: 0))
-                .setOwnerFullName(it.clientFullName)
-                .build()
-            responseObserver.onNext(account)
+        accounts.forEach { account ->
+            responseObserver.onNext(account.toAccountGrpc(owner!!))
         }
         responseObserver.onCompleted()
     }
@@ -97,6 +92,7 @@ class AccountOperationService(
             .setCreationDate(Timestamp.newBuilder().setSeconds(account.creationDate?.toInstant()?.epochSecond ?: 0))
             .setClosingDate(Timestamp.newBuilder().setSeconds(account.closingDate?.toInstant()?.epochSecond ?: 0))
             .setOwnerFullName(account.clientFullName)
+            .setType(account.type?.let { com.trustbank.client_mobile.proto.AccountType.valueOf(it.name) })
             .build()
         responseObserver.onNext(accountResponse)
         responseObserver.onCompleted()
@@ -189,7 +185,6 @@ class AccountOperationService(
         } catch (e: Exception) {
             responseObserver.onError(INTERNAL.withDescription("Ошибка получения истории операций").asRuntimeException())
         }
-
 
 
 //        val account = coreRequestRepository.accounts.find { it.id == request.accountId }
@@ -285,6 +280,12 @@ class SecurityConfig : ApplicationContextAware {
         return CoreRequestRepository(webClient)
     }
 
+    @Bean
+    fun userRequest(): UserRequestRepository {
+        val webClient = context.getBean(WebClient::class.java)
+        return UserRequestRepository(webClient)
+    }
+
 
     @Bean
     fun authenticationManager(
@@ -324,13 +325,15 @@ class AccountOperationsServer(private val port: Int) {
         val context: ApplicationContext = AnnotationConfigApplicationContext(SecurityConfig::class.java)
         val authenticationManager = context.getBean(AuthenticationManager::class.java)
         val coreRequestRepository = context.getBean(CoreRequestRepository::class.java)
-        accountOperationService = AccountOperationService(authenticationManager, coreRequestRepository)
+        val userRequestRepository = context.getBean(UserRequestRepository::class.java)
+        accountOperationService =
+            AccountOperationService(authenticationManager, coreRequestRepository, userRequestRepository)
     }
 
 
     private val server: Server = ServerBuilder
         .forPort(port)
-        .addService(accountOperationService)
+        .addService(ServerInterceptors.intercept(accountOperationService, HeaderServerInterceptor()))
         .build()
 
     fun start() {

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "user_operation.proto";
+
+option java_multiple_files = true;
+package com.trustbank.client_mobile.proto;
+
+message Account{
+  string id = 1;
+  google.protobuf.Timestamp creationDate = 2;
+  google.protobuf.Timestamp closingDate = 3;
+  int64 balance = 4;
+  string ownerFullName = 5;
+  Client owner = 6;
+  AccountType type = 7;
+  bool isBlocked = 8;
+}
+
+enum AccountType {
+  DEPOSIT = 0;
+  LOAN = 1;
+  MASTER = 2;
+}
+
+
