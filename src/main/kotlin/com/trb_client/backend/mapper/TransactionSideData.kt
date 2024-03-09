@@ -9,6 +9,11 @@ import com.trustbank.client_mobile.proto.TransactionType as TransactionTypeGrpc
 
 fun TransactionType.toGrpc() = TransactionTypeGrpc.valueOf(this.name)
 
-fun TransactionState.toGrpc() = TransactionStateGrpc.valueOf(this.name)
+fun TransactionState.toGrpc(): TransactionStateGrpc {
+    return when (this) {
+        TransactionState.DONE -> TransactionStateGrpc.TRANSACTION_DONE
+        TransactionState.REJECTED -> TransactionStateGrpc.TRANSACTION_REJECTED
+    }
+}
 
 fun TransactionCode.toGrpc() = TransactionCodeGrpc.valueOf(this.name)

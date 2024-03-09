@@ -5,7 +5,7 @@ import com.trb_client.backend.models.response.AccountResponse
 import com.trustbank.client_mobile.proto.Account
 import com.trustbank.client_mobile.proto.Client
 
-fun AccountResponse.toGrpc(owner: Client) = Account.newBuilder()
+fun AccountResponse.toGrpc(owner: Client?) = Account.newBuilder()
     .setId(id.toString())
     .setCreationDate(
         Timestamp.newBuilder().setSeconds(creationDate?.time ?: 0)

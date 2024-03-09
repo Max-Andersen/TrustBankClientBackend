@@ -83,7 +83,7 @@ class LoanRepository(
         val request =
             LoanRequest(UUID.fromString(clientId), UUID.fromString(tariffId), loanTermInDays, issuedAmount)
 
-        val response = webClient.post().uri(baseSubLoanUrl).bodyValue(request)
+        val response = webClient.post().uri("${baseSubLoanUrl}loan-applications").bodyValue(request)
             .exchangeToMono { it.toEntity<LoanRequestResponse>() }.block()
 
         if (response?.statusCode?.is2xxSuccessful == true) {

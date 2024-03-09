@@ -177,8 +177,8 @@ class AccountOperationService(
                         }?.toGrpc()
 
                         transactionItem.toGrpc(
-                            payee = payeeAccount?.toGrpc(payer!!),
-                            payer = payerAccount?.toGrpc(payee!!)
+                            payee = payeeAccount?.toGrpc(payee),
+                            payer = payerAccount?.toGrpc(payer)
                         )
                     }).build()
             )
