@@ -8,7 +8,7 @@ data class Transaction(
     val payerAccountId: UUID? = null,
     val payeeAccountId: UUID? = null,
     val amount: Long = 0,
-    val type: TransactionType? = null,
-    val state: TransactionState? = null,
-    val code: TransactionCode? = null
+    val type: TransactionType,
+    val state: TransactionState,
+    val code: TransactionCode
 )

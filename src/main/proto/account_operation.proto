@@ -1,8 +1,6 @@
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
 import "transaction_model.proto";
-import "user_operation.proto";
 import "account_model.proto";
 
 option java_multiple_files = true;

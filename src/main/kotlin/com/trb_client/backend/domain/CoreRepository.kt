@@ -1,18 +1,14 @@
 package com.trb_client.backend.domain
 
-import com.google.protobuf.Timestamp
 import com.trb_client.backend.models.AccountType
 import com.trb_client.backend.models.request.NewAccountRequest
 import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
 import com.trb_client.backend.models.response.AccountResponse
 import com.trb_client.backend.models.response.TransactionHistoryPage
-import com.trustbank.client_mobile.proto.Account
-import com.trustbank.client_mobile.proto.Client
-import com.trustbank.client_mobile.proto.LoginRequest
 import org.springframework.web.reactive.function.client.WebClient
 import java.util.*
 
-class CoreRequestRepository(
+class CoreRepository(
     private val webClient: WebClient
 ) {
     private val baseSubCoreUrl = "/api/v1/"

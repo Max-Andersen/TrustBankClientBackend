@@ -7,5 +7,94 @@ option java_multiple_files = true;
 package com.trustbank.client_mobile.proto;
 
 service LoanOperationService{
+  rpc GetLoanTariffs(GetLoanTariffsRequest) returns (stream LoanTariff);
+
+  rpc GetLoanRequests(GetLoanRequestRequest) returns (stream LoanRequest);
+
+  rpc CreateLoanRequest(CreateLoanRequestRequest) returns (LoanRequest);
+
+  rpc GetLoans (GetClientLoansRequest) returns (stream Loan);
+}
+
+message GetLoanTariffsRequest{
 
 }
+
+message LoanTariff{
+  string id = 1;
+  google.protobuf.Timestamp additionDate = 2;
+  string name = 3;
+  string description = 4;
+  double interestRate = 5;
+}
+
+enum LoanRequestState{
+  UNDER_CONSIDERATION = 0;
+  APPROVED = 1;
+  REJECTED = 2;
+  FAILED = 3;
+}
+
+message GetLoanRequestRequest{
+  LoanRequestState status = 1;
+}
+
+message LoanRequest{
+  string id = 1;
+  google.protobuf.Timestamp creationDate = 2;
+  google.protobuf.Timestamp updatedDateFinal = 3;
+  int64 loanTermInDays = 4;
+  int64 issuedAmount = 5;
+  string clientId = 6;
+  string officerId = 7;
+  LoanRequestState state = 8;
+  LoanTariff tariff = 9;
+}
+
+message CreateLoanRequestRequest{
+  string clientId = 1;
+  string tariffId = 2;
+  int32 loanTermInDays = 3;
+  int64 issuedAmount = 4;
+}
+
+message GetClientLoansRequest{
+
+}
+
+enum LoanState{
+    CLOSED = 0;
+    OPEN = 1;
+}
+
+message Loan{
+  string id = 1;
+  google.protobuf.Timestamp issuedDate = 2;
+  google.protobuf.Timestamp repaymentDate = 3;
+  int64 issuedAmount = 4;
+  int64 amountLoan = 5;
+  int64 amountDebt = 6;
+  int64 accruedPenny = 7;
+  int64 loanTermInDays = 8;
+  string clientId = 9;
+  string accountId = 10;
+  LoanState state = 11;
+  LoanTariff tariff = 12;
+  repeated Payment operations = 13;
+}
+
+enum LoanRepaymentState {
+  PAYMENT_OPEN = 0;
+  IN_PROGRESS = 1;
+  DONE = 2;
+  PAYMENT_REJECTED = 3;
+}
+
+
+message Payment{
+  string id = 1;
+  google.protobuf.Timestamp date = 2;
+  int64 amount = 3;
+  LoanRepaymentState state = 4;
+}
+

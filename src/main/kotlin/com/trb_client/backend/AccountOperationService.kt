@@ -1,12 +1,11 @@
 package com.trb_client.backend
 
-import com.google.protobuf.Timestamp
 import com.trb_client.backend.data.HeaderServerInterceptor
 import com.trb_client.backend.data.UserAuthorizingData
-import com.trb_client.backend.domain.CoreRequestRepository
-import com.trb_client.backend.domain.UserRequestRepository
-import com.trb_client.backend.mapper.toAccountGrpc
-import com.trb_client.backend.mapper.toClient
+import com.trb_client.backend.domain.CoreRepository
+import com.trb_client.backend.domain.LoanRepository
+import com.trb_client.backend.domain.UserRepository
+import com.trb_client.backend.mapper.toGrpc
 import com.trb_client.backend.models.AccountType
 import com.trustbank.client_mobile.proto.*
 import io.grpc.Server
@@ -20,26 +19,16 @@ import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.security.authentication.AuthenticationManager
-import org.springframework.security.authentication.ProviderManager
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
-import org.springframework.security.core.userdetails.User
-import org.springframework.security.core.userdetails.UserDetailsService
-import org.springframework.security.crypto.factory.PasswordEncoderFactories
-import org.springframework.security.crypto.password.PasswordEncoder
-import org.springframework.security.provisioning.InMemoryUserDetailsManager
 import org.springframework.web.reactive.function.client.WebClient
 import java.util.UUID
 
 
 @GrpcService
 class AccountOperationService(
-    val authenticationManager: AuthenticationManager,
-    val coreRequestRepository: CoreRequestRepository,
-    val userRequestRepository: UserRequestRepository
-) : AccountOperationsServiceGrpc.AccountOperationsServiceImplBase() {
+    val coreRepository: CoreRepository,
+    val userRepository: UserRepository
+) : AccountOperationServiceGrpc.AccountOperationServiceImplBase() {
 
     /**
      *
@@ -52,59 +41,59 @@ class AccountOperationService(
      *
      */
 
-    override fun login(request: LoginRequest, responseObserver: StreamObserver<Client>) {
-        val clientInfo = userRequestRepository.login(request.login, request.password)
-        clientInfo?.let {
-            val client = it.toClient()
-            responseObserver.onNext(client)
-            responseObserver.onCompleted()
-        } ?: responseObserver.onError(UNAUTHENTICATED.asRuntimeException())
-    }
+//    override fun login(request: LoginRequest, responseObserver: StreamObserver<Client>) {
+//        val clientInfo = userRequestRepository.login(request.login, request.password)
+//        clientInfo?.let {
+//            val client = it.toGrpc()
+//            responseObserver.onNext(client)
+//            responseObserver.onCompleted()
+//        } ?: responseObserver.onError(UNAUTHENTICATED.asRuntimeException())
+//    }
 
     override fun getAccounts(request: GetAccountsRequest, responseObserver: StreamObserver<Account>) {
         val userId = UserAuthorizingData.id.get()
-        val accounts = coreRequestRepository.getClientAccounts(UUID.fromString(userId))
+        val accounts = coreRepository.getClientAccounts(UUID.fromString(userId))
 
         val owner: Client? =
             if (accounts.isNotEmpty())
-                (userRequestRepository.getClientById(accounts.first().externalClientId.toString())
-                    ?: throw Exception("user not found")).toClient()
+                (userRepository.getClientById(accounts.first().externalClientId.toString())
+                    ?: throw Exception("user not found")).toGrpc()
             else null
 
         accounts.forEach { account ->
-            responseObserver.onNext(account.toAccountGrpc(owner!!))
+            responseObserver.onNext(account.toGrpc(owner!!))
         }
         responseObserver.onCompleted()
     }
 
     override fun getAccountInfo(request: GetAccountInfoRequest, responseObserver: StreamObserver<Account>) {
-        val account = coreRequestRepository.getAccountInfo(UUID.fromString(request.accountId))
+        val userId = UserAuthorizingData.id.get()
+        try {
+            val accountInfo = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
+            val owner = userRepository.getClientById(accountInfo.externalClientId.toString())
+                ?: throw Exception("user not found")
 
-        val accountResponse = Account.newBuilder()
-            .setId(account.id.toString())
-            .setOwner(
-                Client.newBuilder()
-                    .setId(account.externalClientId.toString())
-                    .setFirstName(account.clientFullName)
-                    .build()
+            val accountResponse = accountInfo.toGrpc(owner.toGrpc())
+            responseObserver.onNext(accountResponse)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(
+                INTERNAL.withDescription("Ошибка получения информации об аккаунте").asRuntimeException()
             )
-            .setBalance(account.balance)
-            .setCreationDate(Timestamp.newBuilder().setSeconds(account.creationDate?.toInstant()?.epochSecond ?: 0))
-            .setClosingDate(Timestamp.newBuilder().setSeconds(account.closingDate?.toInstant()?.epochSecond ?: 0))
-            .setOwnerFullName(account.clientFullName)
-            .setType(account.type?.let { com.trustbank.client_mobile.proto.AccountType.valueOf(it.name) })
-            .build()
-        responseObserver.onNext(accountResponse)
-        responseObserver.onCompleted()
+        }
     }
 
 
     override fun openNewAccount(request: OpenAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
         try {
-            coreRequestRepository.createAccount(
-                UUID.fromString(request.userId),
-                "Иванов Иван Иванович", // TODO в сервис пользователей
-                AccountType.DEPOSIT
+            val userId = UserAuthorizingData.id.get()
+            val user = userRepository.getClientById(userId)
+                ?: throw Exception("user not found")
+
+            coreRepository.createAccount(
+                clientId = UUID.fromString(userId),
+                clientFullName = user.firstName + user.lastName + user.patronymic,
+                accountType = AccountType.DEPOSIT
             )
 
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
@@ -116,7 +105,7 @@ class AccountOperationService(
 
     override fun closeAccount(request: CloseAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
         try {
-            coreRequestRepository.closeAccount(UUID.fromString(request.accountId))
+            coreRepository.closeAccount(UUID.fromString(request.accountId))
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
         } catch (e: Exception) {
@@ -127,7 +116,7 @@ class AccountOperationService(
 
     override fun depositMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
         try {
-            coreRequestRepository.depositMoney(UUID.fromString(request.accountId), request.amount)
+            coreRepository.depositMoney(UUID.fromString(request.accountId), request.amount)
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
         } catch (e: Exception) {
@@ -136,9 +125,8 @@ class AccountOperationService(
     }
 
     override fun withdrawMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
-
         try {
-            coreRequestRepository.withdrawMoney(UUID.fromString(request.accountId), request.amount)
+            coreRepository.withdrawMoney(UUID.fromString(request.accountId), request.amount)
             responseObserver.onNext(OperationResponse.newBuilder().setSuccess(true).build())
             responseObserver.onCompleted()
         } catch (e: Exception) {
@@ -163,22 +151,35 @@ class AccountOperationService(
 
     override fun getHistoryOfAccount(
         request: GetHistoryOfAccountRequest,
-        responseObserver: StreamObserver<com.trustbank.client_mobile.proto.TransactionHistoryPage>
+        responseObserver: StreamObserver<TransactionHistoryPage>
     ) {
         try {
-            val page = coreRequestRepository.getAccountHistory(
+            val page = coreRepository.getAccountHistory(
                 UUID.fromString(request.accountId),
                 request.pageNumber,
                 request.pageSize
             )
             responseObserver.onNext(
-                com.trustbank.client_mobile.proto.TransactionHistoryPage.newBuilder().setPageNumber(page.pageNumber)
+                TransactionHistoryPage.newBuilder().setPageNumber(page.pageNumber)
                     .setPageSize(page.pageSize).setPageNumber(page.pageNumber)
-                    .addAllElements(page.elements.map {
-                        Transaction.newBuilder()
-                            .setAmount(it.amount)
-                            .setDate(Timestamp.newBuilder().setSeconds(it.date?.toInstant()?.epochSecond ?: 0L))
-                            .build()
+                    .addAllElements(page.elements.map { transactionItem ->
+                        val payerAccount = transactionItem.payerAccountId?.let {
+                            coreRepository.getAccountInfo(it)
+                        }
+                        val payer = payerAccount?.let {
+                            userRepository.getClientById(it.externalClientId.toString())
+                        }?.toGrpc()
+                        val payeeAccount = transactionItem.payeeAccountId?.let {
+                            coreRepository.getAccountInfo(it)
+                        }
+                        val payee = payeeAccount?.let {
+                            userRepository.getClientById(it.externalClientId.toString())
+                        }?.toGrpc()
+
+                        transactionItem.toGrpc(
+                            payee = payeeAccount?.toGrpc(payer!!),
+                            payer = payerAccount?.toGrpc(payee!!)
+                        )
                     }).build()
             )
             responseObserver.onCompleted()
@@ -202,40 +203,40 @@ class AccountOperationService(
 //        } ?: responseObserver.onError(NOT_FOUND.withDescription("Аккаунт не найден").asRuntimeException())
     }
 
-    override fun helloWorld(request: HelloRequest, responseObserver: StreamObserver<HelloResponse>) {
-//        responseObserver.onNext(HelloResponse.newBuilder().setMessage("Hello ${request.name}").build())
-//        responseObserver.onCompleted()
-        val authenticationRequest =
-            UsernamePasswordAuthenticationToken.unauthenticated(
-                "user", "password"
-            )
-        val authenticationResponse =
-            authenticationManager.authenticate(authenticationRequest)
-
-
-//        responseObserver.onNext(
-//            HelloResponse.newBuilder().setMessage("${authenticationResponse.isAuthenticated}").build()
+//    override fun helloWorld(request: HelloRequest, responseObserver: StreamObserver<HelloResponse>) {
+////        responseObserver.onNext(HelloResponse.newBuilder().setMessage("Hello ${request.name}").build())
+////        responseObserver.onCompleted()
+//        val authenticationRequest =
+//            UsernamePasswordAuthenticationToken.unauthenticated(
+//                "user", "password"
+//            )
+//        val authenticationResponse =
+//            authenticationManager.authenticate(authenticationRequest)
+//
+//
+////        responseObserver.onNext(
+////            HelloResponse.newBuilder().setMessage("${authenticationResponse.isAuthenticated}").build()
+////        )
+////        responseObserver.onCompleted()
+//
+//
+//        responseObserver.onError(
+//            NOT_FOUND.withDescription("This pet with id = " + request.name + " is not found")
+//                .asRuntimeException()
 //        )
-//        responseObserver.onCompleted()
-
-
-        responseObserver.onError(
-            NOT_FOUND.withDescription("This pet with id = " + request.name + " is not found")
-                .asRuntimeException()
-        )
-
-//        responseObserver.onError(Throwable("Error"))
-
-//        val errorResponseKey: Metadata.Key<PetOuterClass.ErrorResponse> =
-//            ProtoUtils.keyForProto(PetOuterClass.ErrorResponse.getDefaultInstance())
-//        val errorResponse: PetOuterClass.ErrorResponse = PetOuterClass.ErrorResponse.newBuilder()
-//            .setErrorName(("This pet with id = " + request.getPetId()).toString() + " is not in the database")
-//            .build()
-//        val metadata = Metadata()
-//        metadata.put(errorResponseKey, errorResponse)
-
-
-    }
+//
+////        responseObserver.onError(Throwable("Error"))
+//
+////        val errorResponseKey: Metadata.Key<PetOuterClass.ErrorResponse> =
+////            ProtoUtils.keyForProto(PetOuterClass.ErrorResponse.getDefaultInstance())
+////        val errorResponse: PetOuterClass.ErrorResponse = PetOuterClass.ErrorResponse.newBuilder()
+////            .setErrorName(("This pet with id = " + request.getPetId()).toString() + " is not in the database")
+////            .build()
+////        val metadata = Metadata()
+////        metadata.put(errorResponseKey, errorResponse)
+//
+//
+//    }
 
 
 }
@@ -269,71 +270,70 @@ class SecurityConfig : ApplicationContextAware {
         return WebClient.builder()
     }
 
-    @Bean
-    fun webClient(builder: WebClient.Builder): WebClient {
-        return builder.baseUrl("http://localhost:8080").build()
+    @Bean("coreWebClient")
+    fun webCoreClient(builder: WebClient.Builder): WebClient {
+        println(System.getenv("core_url"))
+        println(System.getenv("core_url"))
+        println(System.getenv("core_url"))
+        println(System.getenv("core_url"))
+        println(System.getenv("core_url"))
+        println(System.getenv("core_url"))
+        println(System.getenv("core_url"))
+        return builder.baseUrl(System.getenv("core_url")).build()
+    }
+
+    @Bean("loanWebClient")
+    fun webLoanClient(builder: WebClient.Builder): WebClient {
+        return builder.baseUrl(System.getenv("loan_url")).build()
+    }
+
+    @Bean("usersWebClient")
+    fun webUsersClient(builder: WebClient.Builder): WebClient {
+        return builder.baseUrl(System.getenv("users_url")).build()
     }
 
     @Bean
-    fun coreRequest(): CoreRequestRepository {
-        val webClient = context.getBean(WebClient::class.java)
-        return CoreRequestRepository(webClient)
+    fun coreRequest(): CoreRepository {
+        val webClient = context.getBean("coreWebClient", WebClient::class.java)
+        return CoreRepository(webClient)
     }
 
     @Bean
-    fun userRequest(): UserRequestRepository {
-        val webClient = context.getBean(WebClient::class.java)
-        return UserRequestRepository(webClient)
-    }
-
-
-    @Bean
-    fun authenticationManager(
-        userDetailsService: UserDetailsService,
-        passwordEncoder: PasswordEncoder
-    ): AuthenticationManager {
-        val authenticationProvider = DaoAuthenticationProvider()
-        authenticationProvider.setUserDetailsService(userDetailsService)
-        authenticationProvider.setPasswordEncoder(passwordEncoder)
-
-        return ProviderManager(authenticationProvider)
+    fun userRequest(): UserRepository {
+        val webClient = context.getBean("usersWebClient", WebClient::class.java)
+        return UserRepository(webClient)
     }
 
     @Bean
-    fun userDetailsService(): UserDetailsService {
-        val user = User.withDefaultPasswordEncoder()
-            .username("user")
-            .password("password")
-            .roles("USER")
-            .build()
-
-        return InMemoryUserDetailsManager(user)
+    fun loanRequest(): LoanRepository {
+        val webClient = context.getBean("loanWebClient", WebClient::class.java)
+        return LoanRepository(webClient)
     }
-
-    @Bean
-    fun passwordEncoder(): PasswordEncoder {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder()
-    }
-
 
 }
 
 class AccountOperationsServer(private val port: Int) {
     private val accountOperationService: AccountOperationService
+    private val userOperationService: UserOperationService
+    private val loanOperationService: LoanOperationService
 
     init {
         val context: ApplicationContext = AnnotationConfigApplicationContext(SecurityConfig::class.java)
-        val authenticationManager = context.getBean(AuthenticationManager::class.java)
-        val coreRequestRepository = context.getBean(CoreRequestRepository::class.java)
-        val userRequestRepository = context.getBean(UserRequestRepository::class.java)
+        val coreRepository = context.getBean(CoreRepository::class.java)
+        val userRepository = context.getBean(UserRepository::class.java)
+        val loanRepository = context.getBean(LoanRepository::class.java)
         accountOperationService =
-            AccountOperationService(authenticationManager, coreRequestRepository, userRequestRepository)
+            AccountOperationService(coreRepository, userRepository)
+        userOperationService = UserOperationService(userRepository)
+        loanOperationService = LoanOperationService(loanRepository)
     }
 
 
     private val server: Server = ServerBuilder
         .forPort(port)
         .addService(ServerInterceptors.intercept(accountOperationService, HeaderServerInterceptor()))
+        .addService(ServerInterceptors.intercept(userOperationService, HeaderServerInterceptor()))
+        .addService(ServerInterceptors.intercept(loanOperationService, HeaderServerInterceptor()))
         .build()
 
     fun start() {

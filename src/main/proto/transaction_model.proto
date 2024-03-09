@@ -39,8 +39,8 @@ enum TransactionType{
 }
 
 enum TransactionState{
-  DONE = 0;
-  REJECTED = 1;
+  TRANSACTION_DONE = 0;
+  TRANSACTION_REJECTED = 1;
 }
 
 enum TransactionCode {
