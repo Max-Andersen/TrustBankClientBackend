@@ -19,12 +19,20 @@ service AccountOperationService {
 
   rpc CloseAccount (CloseAccountRequest) returns (OperationResponse) {}
 
+  rpc TransferMoney (TransferMoneyRequest) returns (Transaction) {}
+
   rpc DepositMoney (MoneyOperation) returns (OperationResponse) {}
 
   rpc WithdrawMoney (MoneyOperation) returns (OperationResponse) {}
 
   rpc GetHistoryOfAccount (GetHistoryOfAccountRequest) returns (TransactionHistoryPage) {}
 
+}
+
+message TransferMoneyRequest{
+  string fromAccountId = 1;
+  string toAccountId = 2;
+  int64 amount = 3;
 }
 
 

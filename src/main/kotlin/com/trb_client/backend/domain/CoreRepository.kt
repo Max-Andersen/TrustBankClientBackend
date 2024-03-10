@@ -2,8 +2,10 @@ package com.trb_client.backend.domain
 
 import com.trb_client.backend.models.AccountType
 import com.trb_client.backend.models.request.NewAccountRequest
+import com.trb_client.backend.models.request.TransferMoneyRequest
 import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
 import com.trb_client.backend.models.response.AccountResponse
+import com.trb_client.backend.models.response.Transaction
 import com.trb_client.backend.models.response.TransactionHistoryPage
 import org.springframework.web.reactive.function.client.WebClient
 import java.util.*
@@ -12,6 +14,26 @@ class CoreRepository(
     private val webClient: WebClient
 ) {
     private val baseSubCoreUrl = "/api/v1/"
+
+    fun transferMoney(fromAccountId: UUID, toAccountId: UUID, amount: Long): Transaction {
+        val url = "${baseSubCoreUrl}transactions/account-to-account"
+        val requestModel = TransferMoneyRequest(
+            fromAccountId.toString(),
+            toAccountId.toString(),
+            amount
+        )
+        val response =
+            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(Transaction::class.java) }.block()
+
+        response?.let {
+            if (it.statusCode.is2xxSuccessful) {
+                // TODO проверить всё
+                return it.body ?: throw Exception("Transfer not created")
+            }
+        }
+
+        throw Exception("Transfer response is null or not successful")
+    }
 
     fun withdrawMoney(accountId: UUID, amount: Long): Boolean {
         val url = "${baseSubCoreUrl}transactions/withdrawal"

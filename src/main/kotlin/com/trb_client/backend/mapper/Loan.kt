@@ -7,6 +7,7 @@ import com.trb_client.backend.models.LoanState
 import com.trb_client.backend.models.response.LoanRepaymentResponse
 import com.trb_client.backend.models.response.LoanRequestResponse
 import com.trb_client.backend.models.response.LoanResponse
+import com.trb_client.backend.models.response.ShortLoanInfo
 import com.trustbank.client_mobile.proto.Loan
 import com.trustbank.client_mobile.proto.LoanPaymentState
 import com.trustbank.client_mobile.proto.LoanRequest
@@ -14,6 +15,7 @@ import com.trustbank.client_mobile.proto.LoanRequestState
 import com.trustbank.client_mobile.proto.Payment
 import com.trustbank.client_mobile.proto.LoanRepaymentState as LoanRepaymentStateGrpc
 import com.trustbank.client_mobile.proto.LoanState as LoanStateGrpc
+import com.trustbank.client_mobile.proto.ShortLoanInfo as ShortLoanInfoGrpc
 
 fun LoanRequestResponse.toGrpc(): LoanRequest = LoanRequest.newBuilder()
     .setId(id.toString())
@@ -25,6 +27,15 @@ fun LoanRequestResponse.toGrpc(): LoanRequest = LoanRequest.newBuilder()
     .setOfficerId(officerId?.toString() ?: "")
     .setState(LoanRequestState.valueOf(state.name))
     .setTariff(tariff.toGrpc())
+    .build()
+
+
+fun ShortLoanInfo.toGrpc(): ShortLoanInfoGrpc = ShortLoanInfoGrpc.newBuilder()
+    .setId(id.toString())
+    .setIssuedDate(Timestamp.newBuilder().setSeconds(issuedDate.time))
+    .setRepaymentDate(Timestamp.newBuilder().setSeconds(repaymentDate.time))
+    .setAmountDebt(amountDebt)
+    .setInterestRate(interestRate.toDouble())
     .build()
 
 

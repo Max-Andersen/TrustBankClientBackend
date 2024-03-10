@@ -3,6 +3,7 @@ package com.trb_client.backend.domain
 import com.trb_client.backend.models.request.LoanRequest
 import com.trb_client.backend.models.response.LoanRequestResponse
 import com.trb_client.backend.models.response.LoanResponse
+import com.trb_client.backend.models.response.ShortLoanInfo
 import com.trb_client.backend.models.response.TariffResponse
 import com.trustbank.client_mobile.proto.CreateLoanRequestRequest
 import org.springframework.web.reactive.function.client.WebClient
@@ -32,12 +33,12 @@ class LoanRepository(
                 .build()
         }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
 
-        val response_APPROVED = webClient.get().uri {
-            it.path("${baseSubLoanUrl}loan-applications/by-client")
-                .queryParam("clientId", clientId)
-                .queryParam("loanApplicationState", "APPROVED")
-                .build()
-        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
+//        val response_APPROVED = webClient.get().uri {
+//            it.path("${baseSubLoanUrl}loan-applications/by-client")
+//                .queryParam("clientId", clientId)
+//                .queryParam("loanApplicationState", "APPROVED")
+//                .build()
+//        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
 
         val response_REJECTED = webClient.get().uri {
             it.path("${baseSubLoanUrl}loan-applications/by-client")
@@ -55,7 +56,7 @@ class LoanRepository(
 
         val allResponses = (
                 (response_UNDER_CONSIDERATION?.body ?: listOf()) +
-                        (response_APPROVED?.body ?: listOf()) +
+                        //(response_APPROVED?.body ?: listOf()) +
                         (response_REJECTED?.body ?: listOf()) +
                         (response_FAILED?.body ?: listOf())).sortedBy { it.creationDate }
 
@@ -66,17 +67,26 @@ class LoanRepository(
         throw Exception("LoanRequests not found")
     }
 
-    fun getLoansByClient(clientId: String): List<LoanResponse> {
+    fun getLoansByClient(clientId: String): List<ShortLoanInfo> {
         val response = webClient.get().uri {
-            it.path("${baseSubLoanUrl}loan")
+            it.path("${baseSubLoanUrl}client-loans")
                 .queryParam("clientId", clientId)
                 .build()
-        }.exchangeToMono { it.toEntityList<LoanResponse>() }.block()
-
+        }.exchangeToMono { it.toEntityList<ShortLoanInfo>() }.block()
+        
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loans not found")
         }
         throw Exception("Loans not found")
+    }
+
+    fun getLoanById(loanId: String): LoanResponse {
+        val response = webClient.get().uri("${baseSubLoanUrl}loan/$loanId").exchangeToMono { it.toEntity<LoanResponse>() }.block()
+
+        if (response?.statusCode?.is2xxSuccessful == true) {
+            return response.body ?: throw Exception("Loan not found")
+        }
+        throw Exception("Loan not found")
     }
 
     fun createLoan(clientId: String, tariffId: String, loanTermInDays: Int, issuedAmount: Long): LoanRequestResponse {

@@ -61,7 +61,7 @@ class AccountOperationService(
             else null
 
         accounts.forEach { account ->
-            responseObserver.onNext(account.toGrpc(owner!!))
+            responseObserver.onNext(account.toGrpc(owner))
         }
         responseObserver.onCompleted()
     }
@@ -110,6 +110,33 @@ class AccountOperationService(
             responseObserver.onCompleted()
         } catch (e: Exception) {
             responseObserver.onError(INTERNAL.withDescription("Ошибка закрытия аккаунта").asRuntimeException())
+        }
+    }
+
+    override fun transferMoney(request: TransferMoneyRequest, responseObserver: StreamObserver<Transaction>) {
+        try {
+            val transaction = coreRepository.transferMoney(
+                UUID.fromString(request.fromAccountId),
+                UUID.fromString(request.toAccountId),
+                request.amount
+            )
+            val payerAccount = transaction.payerAccountId?.let {
+                coreRepository.getAccountInfo(it)
+            }
+            val payer = payerAccount?.let {
+                userRepository.getClientById(it.externalClientId.toString())
+            }?.toGrpc()
+            val payeeAccount = transaction.payeeAccountId?.let {
+                coreRepository.getAccountInfo(it)
+            }
+            val payee = payeeAccount?.let {
+                userRepository.getClientById(it.externalClientId.toString())
+            }?.toGrpc()
+
+            responseObserver.onNext(transaction.toGrpc(payeeAccount?.toGrpc(payee), payerAccount?.toGrpc(payer)))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(INTERNAL.withDescription("Ошибка перевода средств").asRuntimeException())
         }
     }
 
@@ -167,13 +194,13 @@ class AccountOperationService(
                             coreRepository.getAccountInfo(it)
                         }
                         val payer = payerAccount?.let {
-                            userRepository.getClientById(it.externalClientId.toString())
+                            it.externalClientId?.let { clientId -> userRepository.getClientById(clientId) }
                         }?.toGrpc()
                         val payeeAccount = transactionItem.payeeAccountId?.let {
                             coreRepository.getAccountInfo(it)
                         }
                         val payee = payeeAccount?.let {
-                            userRepository.getClientById(it.externalClientId.toString())
+                            it.externalClientId?.let { clientId -> userRepository.getClientById(clientId) }
                         }?.toGrpc()
 
                         transactionItem.toGrpc(

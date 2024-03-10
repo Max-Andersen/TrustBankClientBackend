@@ -13,7 +13,13 @@ service LoanOperationService{
 
   rpc CreateLoanRequest(CreateLoanRequestRequest) returns (LoanRequest);
 
-  rpc GetLoans (GetClientLoansRequest) returns (stream Loan);
+  rpc GetLoans (GetClientLoansRequest) returns (stream ShortLoanInfo);
+
+  rpc GetLoanById(GetLoanByIdRequest) returns (Loan);
+}
+
+message GetLoanByIdRequest{
+  string id = 1;
 }
 
 message GetLoanTariffsRequest{
@@ -81,6 +87,14 @@ message Loan{
   LoanState state = 11;
   LoanTariff tariff = 12;
   repeated Payment operations = 13;
+}
+
+message ShortLoanInfo{
+  string id = 1;
+  google.protobuf.Timestamp issuedDate = 2;
+  google.protobuf.Timestamp repaymentDate = 3;
+  int64 amountDebt = 4;
+  double interestRate = 5;
 }
 
 enum LoanRepaymentState {

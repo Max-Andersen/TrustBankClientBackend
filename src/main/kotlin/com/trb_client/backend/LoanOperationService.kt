@@ -17,9 +17,11 @@ class LoanOperationService(
         }
         responseObserver.onCompleted()
     }
+
     override fun createLoanRequest(request: CreateLoanRequestRequest, responseObserver: StreamObserver<LoanRequest>) {
         val userId = UserAuthorizingData.id.get()
-        val loanRequest = loanRepository.createLoan(userId, request.tariffId, request.loanTermInDays, request.issuedAmount)
+        val loanRequest =
+            loanRepository.createLoan(userId, request.tariffId, request.loanTermInDays, request.issuedAmount)
         responseObserver.onNext(loanRequest.toGrpc())
         responseObserver.onCompleted()
     }
@@ -33,12 +35,18 @@ class LoanOperationService(
         responseObserver.onCompleted()
     }
 
-    override fun getLoans(request: GetClientLoansRequest, responseObserver: StreamObserver<Loan>) {
+    override fun getLoans(request: GetClientLoansRequest, responseObserver: StreamObserver<ShortLoanInfo>) {
         val userId = UserAuthorizingData.id.get()
         val loans = loanRepository.getLoansByClient(userId)
         loans.forEach {
             responseObserver.onNext(it.toGrpc())
         }
+        responseObserver.onCompleted()
+    }
+
+    override fun getLoanById(request: GetLoanByIdRequest, responseObserver: StreamObserver<Loan>) {
+        val loan = loanRepository.getLoanById(request.id)
+        responseObserver.onNext(loan.toGrpc())
         responseObserver.onCompleted()
     }
 }
