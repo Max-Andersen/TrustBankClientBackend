@@ -15,6 +15,7 @@ message Account{
   Client owner = 6;
   AccountType type = 7;
   bool isBlocked = 8;
+  bool isHided = 9;
 }
 
 enum AccountType {

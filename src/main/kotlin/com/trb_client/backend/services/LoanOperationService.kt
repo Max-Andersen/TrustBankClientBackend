@@ -1,11 +1,14 @@
-package com.trb_client.backend
+package com.trb_client.backend.services
 
+import com.trb_client.backend.data.HeaderServerInterceptor
 import com.trb_client.backend.data.UserAuthorizingData
 import com.trb_client.backend.domain.LoanRepository
 import com.trb_client.backend.mapper.toGrpc
 import com.trustbank.client_mobile.proto.*
 import io.grpc.stub.StreamObserver
+import net.devh.boot.grpc.server.service.GrpcService
 
+@GrpcService(interceptors = [HeaderServerInterceptor::class])
 class LoanOperationService(
     private val loanRepository: LoanRepository
 ) : LoanOperationServiceGrpc.LoanOperationServiceImplBase() {

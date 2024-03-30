@@ -1,38 +1,31 @@
-package com.trb_client.backend
+package com.trb_client.backend.services
 
 import com.trb_client.backend.data.HeaderServerInterceptor
 import com.trb_client.backend.data.UserAuthorizingData
 import com.trb_client.backend.domain.CoreRepository
-import com.trb_client.backend.domain.LoanRepository
+import com.trb_client.backend.domain.HiddenAccountRepository
 import com.trb_client.backend.domain.UserRepository
 import com.trb_client.backend.mapper.toGrpc
 import com.trb_client.backend.models.AccountType
 import com.trustbank.client_mobile.proto.*
-import io.grpc.Server
-import io.grpc.ServerBuilder
-import io.grpc.ServerInterceptors
 import io.grpc.Status.*
 import io.grpc.stub.StreamObserver
 import net.devh.boot.grpc.server.service.GrpcService
-import org.springframework.context.ApplicationContext
-import org.springframework.context.ApplicationContextAware
-import org.springframework.context.annotation.AnnotationConfigApplicationContext
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
-import org.springframework.web.reactive.function.client.WebClient
 import java.util.UUID
 
 
-@GrpcService
+@GrpcService(interceptors = [HeaderServerInterceptor::class])
 class AccountOperationService(
     val coreRepository: CoreRepository,
-    val userRepository: UserRepository
+    val userRepository: UserRepository,
+    val hidedAccountRepository: HiddenAccountRepository
 ) : AccountOperationServiceGrpc.AccountOperationServiceImplBase() {
 
     override fun getAccounts(request: GetAccountsRequest, responseObserver: StreamObserver<Account>) {
         val userId = UserAuthorizingData.id.get()
         val accounts = coreRepository.getClientAccounts(UUID.fromString(userId))
+
+        val hidedAccounts = hidedAccountRepository.getHiddenAccounts(UserAuthorizingData.firebaseToken.get())
 
         val owner: Client? =
             if (accounts.isNotEmpty())
@@ -41,7 +34,7 @@ class AccountOperationService(
             else null
 
         accounts.forEach { account ->
-            responseObserver.onNext(account.toGrpc(owner))
+            responseObserver.onNext(account.toGrpc(owner, account.id.toString() in hidedAccounts))
         }
         responseObserver.onCompleted()
     }
@@ -52,8 +45,9 @@ class AccountOperationService(
             val accountInfo = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
             val owner = userRepository.getClientById(accountInfo.externalClientId.toString())
                 ?: throw Exception("user not found")
+            val hidedAccounts = hidedAccountRepository.getHiddenAccounts(UserAuthorizingData.firebaseToken.get())
 
-            val accountResponse = accountInfo.toGrpc(owner.toGrpc())
+            val accountResponse = accountInfo.toGrpc(owner.toGrpc(), accountInfo.id.toString() in hidedAccounts)
             responseObserver.onNext(accountResponse)
             responseObserver.onCompleted()
         } catch (e: Exception) {
@@ -95,14 +89,19 @@ class AccountOperationService(
 
     override fun transferMoney(request: TransferMoneyRequest, responseObserver: StreamObserver<Transaction>) {
         try {
+            val payerAccount = request.fromAccountId?.let {
+                coreRepository.getAccountInfo(UUID.fromString(request.fromAccountId))
+            }
+
+//            if (payerAccount.id != UserAuthorizingData.id.get()){
+//                throw Exception()
+//            }
+
             val transaction = coreRepository.transferMoney(
                 UUID.fromString(request.fromAccountId),
                 UUID.fromString(request.toAccountId),
                 request.amount
             )
-            val payerAccount = transaction.payerAccountId?.let {
-                coreRepository.getAccountInfo(it)
-            }
             val payer = payerAccount?.let {
                 userRepository.getClientById(it.externalClientId.toString())
             }?.toGrpc()

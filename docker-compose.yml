@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  trb-users-db-dev:
+    container_name: trb-client-back-db-dev
+    image: postgres:15
+    environment:
+      POSTGRES_DB: trb-users
+      POSTGRES_USER: qwe
+      POSTGRES_PASSWORD: qwe
+    ports:
+      - "5432:5432"
+    volumes:
+      - trb-client-back-db-dev:/var/lib/postgresql/data
+
+volumes:
+  trb-client-back-db-dev: { }

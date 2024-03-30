@@ -69,6 +69,13 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
+
+//    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+//    implementation("org.postgresql:postgresql")
+
+
+    implementation("com.google.firebase:firebase-admin:8.0.0")
 }
 
 tasks.withType<KotlinCompile> {

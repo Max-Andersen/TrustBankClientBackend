@@ -5,7 +5,7 @@ import com.trb_client.backend.models.response.AccountResponse
 import com.trustbank.client_mobile.proto.Account
 import com.trustbank.client_mobile.proto.Client
 
-fun AccountResponse.toGrpc(owner: Client?): Account? {
+fun AccountResponse.toGrpc(owner: Client?, isHide: Boolean = false): Account? {
     val builder = Account.newBuilder()
         .setId(id.toString())
         .setCreationDate(
@@ -14,7 +14,7 @@ fun AccountResponse.toGrpc(owner: Client?): Account? {
         .setClosingDate(
             Timestamp.newBuilder().setSeconds(closingDate?.time ?: 0)
         )
-
+        .setIsHided(isHide)
         .setType(type.toAccountTypeGrpc())
         .setBalance(balance)
         .setOwnerFullName(clientFullName)

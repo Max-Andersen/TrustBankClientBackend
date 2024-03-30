@@ -1,5 +1,6 @@
 package com.trb_client.backend.data
 
+import com.google.firebase.auth.FirebaseAuth
 import io.grpc.ServerCall
 import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
@@ -14,8 +15,12 @@ class HeaderServerInterceptor : ServerInterceptor {
         next: ServerCallHandler<ReqT, RespT>
     ): ServerCall.Listener<ReqT> {
 
-        val clientId = requestHeaders.get(GrpcMetadata.Key.of("client_id_header", GrpcMetadata.ASCII_STRING_MARSHALLER)).toString()
-        UserAuthorizingData.id.set(clientId)
+        val clientToken = requestHeaders.get(GrpcMetadata.Key.of("client_id_header", GrpcMetadata.ASCII_STRING_MARSHALLER)).toString()
+
+        val userUid = FirebaseAuth.getInstance().verifyIdToken(clientToken).uid
+
+        UserAuthorizingData.id.set(userUid)
+        UserAuthorizingData.firebaseToken.set(clientToken)
 
         return next.startCall(call, requestHeaders)
     }

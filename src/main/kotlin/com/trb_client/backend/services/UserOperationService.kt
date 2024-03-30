@@ -1,5 +1,6 @@
-package com.trb_client.backend
+package com.trb_client.backend.services
 
+import com.trb_client.backend.data.HeaderServerInterceptor
 import com.trb_client.backend.data.UserAuthorizingData
 import com.trb_client.backend.domain.UserRepository
 import com.trb_client.backend.mapper.toGrpc
@@ -9,7 +10,9 @@ import com.trustbank.client_mobile.proto.LoginRequest
 import com.trustbank.client_mobile.proto.UserOperationServiceGrpc
 import io.grpc.Status.UNAUTHENTICATED
 import io.grpc.stub.StreamObserver
+import net.devh.boot.grpc.server.service.GrpcService
 
+@GrpcService(interceptors = [HeaderServerInterceptor::class])
 class UserOperationService(
     private val userRepository: UserRepository
 ) : UserOperationServiceGrpc.UserOperationServiceImplBase() {
