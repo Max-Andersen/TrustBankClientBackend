@@ -19,13 +19,13 @@ import com.trustbank.client_mobile.proto.ShortLoanInfo as ShortLoanInfoGrpc
 
 fun LoanRequestResponse.toGrpc(): LoanRequest = LoanRequest.newBuilder()
     .setId(id.toString())
-    .setCreationDate(Timestamp.newBuilder().setSeconds(creationDate.time))
+    .setCreationDate(Timestamp.newBuilder().setSeconds(creationDate?.time ?: 0))
     .setUpdatedDateFinal(Timestamp.newBuilder().setSeconds(updatedDateFinal?.time ?: 0))
     .setLoanTermInDays(loanTermInDays)
     .setIssuedAmount(issuedAmount)
     .setClientId(clientId.toString())
     .setOfficerId(officerId?.toString() ?: "")
-    .setState(LoanRequestState.valueOf(state.name))
+    .setState(LoanRequestState.valueOf(state?.name ?: LoanRequestState.UNDER_CONSIDERATION.name))
     .setTariff(tariff.toGrpc())
     .build()
 

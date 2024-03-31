@@ -50,7 +50,7 @@ message LoanRequest{
   google.protobuf.Timestamp creationDate = 2;
   google.protobuf.Timestamp updatedDateFinal = 3;
   int64 loanTermInDays = 4;
-  int64 issuedAmount = 5;
+  double issuedAmount = 5;
   string clientId = 6;
   string officerId = 7;
   LoanRequestState state = 8;
@@ -58,10 +58,10 @@ message LoanRequest{
 }
 
 message CreateLoanRequestRequest{
-  string clientId = 1;
   string tariffId = 2;
   int32 loanTermInDays = 3;
-  int64 issuedAmount = 4;
+  double issuedAmount = 4;
+  string currency = 5;
 }
 
 message GetClientLoansRequest{
@@ -77,10 +77,10 @@ message Loan{
   string id = 1;
   google.protobuf.Timestamp issuedDate = 2;
   google.protobuf.Timestamp repaymentDate = 3;
-  int64 issuedAmount = 4;
-  int64 amountLoan = 5;
-  int64 amountDebt = 6;
-  int64 accruedPenny = 7;
+  double issuedAmount = 4;
+  double amountLoan = 5;
+  double amountDebt = 6;
+  double accruedPenny = 7;
   int64 loanTermInDays = 8;
   string clientId = 9;
   string accountId = 10;

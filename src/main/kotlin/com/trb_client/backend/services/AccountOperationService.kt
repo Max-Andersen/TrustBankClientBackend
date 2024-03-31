@@ -113,29 +113,32 @@ class AccountOperationService(
 
     }
 
-    override fun transferMoney(request: TransferMoneyRequest, responseObserver: StreamObserver<Transaction>) {
+    override fun transferMoney(request: TransferMoneyRequest, responseObserver: StreamObserver<EmptyResponse>) {
         try {
             val payerAccount = request.fromAccountId?.let {
                 coreRepository.getAccountInfo(UUID.fromString(request.fromAccountId))
             }
 
             if (payerAccount?.externalClientId == UserAuthorizingData.id.get()) {
+
+                val account = coreRepository.getAccountInfo(UUID.fromString(request.fromAccountId))
                 val transaction = coreRepository.transferMoney(
                     UUID.fromString(request.fromAccountId),
                     UUID.fromString(request.toAccountId),
-                    request.amount
+                    request.amount,
+                    account.currency
                 )
-                val payer = payerAccount?.let {
-                    userRepository.getClientById(it.externalClientId.toString())
-                }?.toGrpc()
-                val payeeAccount = transaction.payeeAccountId?.let {
-                    coreRepository.getAccountInfo(it)
-                }
-                val payee = payeeAccount?.let {
-                    userRepository.getClientById(it.externalClientId.toString())
-                }?.toGrpc()
-
-                responseObserver.onNext(transaction.toGrpc(payeeAccount?.toGrpc(payee), payerAccount?.toGrpc(payer)))
+//                val payer = payerAccount?.let {
+//                    userRepository.getClientById(it.externalClientId.toString())
+//                }?.toGrpc()
+//                val payeeAccount = transaction.payeeAccountId?.let {
+//                    coreRepository.getAccountInfo(it)
+//                }
+//                val payee = payeeAccount?.let {
+//                    userRepository.getClientById(it.externalClientId.toString())
+//                }?.toGrpc()
+//
+                responseObserver.onNext(EmptyResponse.getDefaultInstance())
             } else {
                 responseObserver.onError(
                     UNAUTHENTICATED.withDescription("Счет принадлежит другому человеку").asRuntimeException()

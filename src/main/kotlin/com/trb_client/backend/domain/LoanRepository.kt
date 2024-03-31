@@ -1,11 +1,11 @@
 package com.trb_client.backend.domain
 
+import com.trb_client.backend.models.request.Currency
 import com.trb_client.backend.models.request.LoanRequest
 import com.trb_client.backend.models.response.LoanRequestResponse
 import com.trb_client.backend.models.response.LoanResponse
 import com.trb_client.backend.models.response.ShortLoanInfo
 import com.trb_client.backend.models.response.TariffResponse
-import com.trustbank.client_mobile.proto.CreateLoanRequestRequest
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.toEntity
 import org.springframework.web.reactive.function.client.toEntityList
@@ -89,12 +89,15 @@ class LoanRepository(
         throw Exception("Loan not found")
     }
 
-    fun createLoan(clientId: String, tariffId: String, loanTermInDays: Int, issuedAmount: Long): LoanRequestResponse {
+    fun createLoan(clientId: String, tariffId: String, loanTermInDays: Int, issuedAmount: Double, currency: Currency): LoanRequestResponse {
         val request =
-            LoanRequest(UUID.fromString(clientId), UUID.fromString(tariffId), loanTermInDays, issuedAmount)
+            LoanRequest(UUID.fromString(clientId), UUID.fromString(tariffId), loanTermInDays, issuedAmount, currency)
 
         val response = webClient.post().uri("${baseSubLoanUrl}loan-applications").bodyValue(request)
-            .exchangeToMono { it.toEntity<LoanRequestResponse>() }.block()
+            .exchangeToMono {
+                println(it as Any)
+                it.toEntity<LoanRequestResponse>()
+            }.block()
 
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loan not created")

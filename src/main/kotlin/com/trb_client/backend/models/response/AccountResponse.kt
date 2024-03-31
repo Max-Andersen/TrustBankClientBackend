@@ -1,6 +1,7 @@
 package com.trb_client.backend.models.response
 
 import com.trb_client.backend.models.AccountType
+import com.trb_client.backend.models.request.Currency
 import java.util.*
 
 

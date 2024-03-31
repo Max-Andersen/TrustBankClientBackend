@@ -6,13 +6,13 @@ import java.util.*
 
 
 data class LoanRequestResponse (
-    val id: UUID,
-    val creationDate: Date,
+    val id: UUID? = null,
+    val creationDate: Date? = null,
     val updatedDateFinal: Date? = null,
     val loanTermInDays: Long,
-    val issuedAmount: Long,
-    val clientId: UUID,
+    val issuedAmount: Double,
+    val clientId: UUID? = null,
     val officerId: UUID? = null,
-    val state: LoanRequestState,
+    val state: LoanRequestState? = null,
     val tariff: TariffResponse,
 )

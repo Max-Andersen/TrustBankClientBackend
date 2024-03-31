@@ -4,6 +4,7 @@ import com.trb_client.backend.data.HeaderServerInterceptor
 import com.trb_client.backend.data.UserAuthorizingData
 import com.trb_client.backend.domain.LoanRepository
 import com.trb_client.backend.mapper.toGrpc
+import com.trb_client.backend.models.request.Currency
 import com.trustbank.client_mobile.proto.*
 import io.grpc.stub.StreamObserver
 import net.devh.boot.grpc.server.service.GrpcService
@@ -24,7 +25,7 @@ class LoanOperationService(
     override fun createLoanRequest(request: CreateLoanRequestRequest, responseObserver: StreamObserver<LoanRequest>) {
         val userId = UserAuthorizingData.id.get()
         val loanRequest =
-            loanRepository.createLoan(userId, request.tariffId, request.loanTermInDays, request.issuedAmount)
+            loanRepository.createLoan(userId, request.tariffId, request.loanTermInDays, request.issuedAmount, Currency.valueOf(request.currency))
         responseObserver.onNext(loanRequest.toGrpc())
         responseObserver.onCompleted()
     }

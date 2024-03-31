@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "transaction_model.proto";
 import "account_model.proto";
+import "mobile_app.proto";
 
 option java_multiple_files = true;
 package com.trustbank.client_mobile.proto;
@@ -19,7 +20,7 @@ service AccountOperationService {
 
   rpc CloseAccount (CloseAccountRequest) returns (OperationResponse) {}
 
-  rpc TransferMoney (TransferMoneyRequest) returns (Transaction) {}
+  rpc TransferMoney (TransferMoneyRequest) returns (EmptyResponse) {}
 
   rpc DepositMoney (MoneyOperation) returns (OperationResponse) {}
 
@@ -32,7 +33,7 @@ service AccountOperationService {
 message TransferMoneyRequest{
   string fromAccountId = 1;
   string toAccountId = 2;
-  int64 amount = 3;
+  double amount = 3;
 }
 
 

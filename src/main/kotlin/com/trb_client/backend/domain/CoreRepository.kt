@@ -20,25 +20,30 @@ class CoreRepository(
 ) {
     private val baseSubCoreUrl = "/api/v1/"
 
-    fun transferMoney(fromAccountId: UUID, toAccountId: UUID, amount: Long): Transaction {
-        val url = "${baseSubCoreUrl}transactions/account-to-account"
-        val requestModel = TransferMoneyRequest(
-            fromAccountId.toString(),
-            toAccountId.toString(),
-            amount
-        )
-        val response =
-            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(Transaction::class.java) }
-                .block()
+    fun transferMoney(fromAccountId: UUID, toAccountId: UUID, amount: Double, currency: Currency) {
+//        val url = "${baseSubCoreUrl}transactions/account-to-account"
+//        val requestModel = TransferMoneyRequest(
+//            fromAccountId.toString(),
+//            toAccountId.toString(),
+//            amount,
+//        )
+//        val response =
+//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(Transaction::class.java) }
+//                .block()
 
-        response?.let {
-            if (it.statusCode.is2xxSuccessful) {
-                // TODO проверить всё
-                return it.body ?: throw Exception("Transfer not created")
-            }
-        }
+        val uuid = UUID.randomUUID()
+        val transactionInit =
+            TransactionInit(fromAccountId, toAccountId, amount, currency , TransactionType.TRANSFER)
+        transactionInitProducer.sendMessage(uuid, transactionInit)
 
-        throw Exception("Transfer response is null or not successful")
+//        response?.let {
+//            if (it.statusCode.is2xxSuccessful) {
+//                 TODO проверить всё
+//                return it.body ?: throw Exception("Transfer not created")
+//            }
+//        }
+//
+//        throw Exception("Transfer response is null or not successful")
     }
 
     fun withdrawMoney(accountId: UUID, amount: Double, currency: String): Boolean {
