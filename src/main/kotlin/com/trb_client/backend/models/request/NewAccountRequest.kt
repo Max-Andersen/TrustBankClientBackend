@@ -6,6 +6,7 @@ import java.util.*
 
 data class NewAccountRequest(
     val type: AccountType? = null,
+    val currency: Currency,
     val clientFullName: String? = null,
     val externalClientId: UUID? = null
 )

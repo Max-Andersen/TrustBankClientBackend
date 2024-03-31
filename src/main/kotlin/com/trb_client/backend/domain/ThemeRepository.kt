@@ -6,9 +6,8 @@ import com.trb_client.backend.domain.models.ThemeDto
 import org.springframework.web.reactive.function.client.*
 
 class ThemeRepository(
-
+    private val webClient: WebClient
 ) {
-    private val webClient = WebClient.builder().baseUrl("http://77.106.105.103:8085/").build()
     private val baseSubPrefsUrl = "api/preferences/"
 
     fun getAppTheme(userToken: String): Boolean {

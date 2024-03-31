@@ -25,7 +25,7 @@ service AccountOperationService {
 
   rpc WithdrawMoney (MoneyOperation) returns (OperationResponse) {}
 
-  rpc GetHistoryOfAccount (GetHistoryOfAccountRequest) returns (TransactionHistoryPage) {}
+  rpc GetHistoryOfAccount (GetHistoryOfAccountRequest) returns (stream Transaction) {}
 
 }
 
@@ -46,7 +46,9 @@ message OperationResponse {
   bool success = 1;
 }
 
-message OpenAccountRequest{}
+message OpenAccountRequest{
+  string currency = 1;
+}
 
 message CloseAccountRequest{
   string accountId = 2;

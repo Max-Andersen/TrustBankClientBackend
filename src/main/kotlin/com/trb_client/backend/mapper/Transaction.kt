@@ -11,8 +11,7 @@ fun Transaction.toGrpc(payee: Account?, payer: Account?): TransactionGrpc {
         .setDate(Timestamp.newBuilder().setSeconds(date?.time ?: 0))
         .setAmount(amount)
         .setType(type.toGrpc())
-        .setState(state.toGrpc())
-        .setCode(code.toGrpc())
+        .setCurrency(currency.toString())
     payee?.let { builder.setPayee(it) }
     payer?.let { builder.setPayer(it) }
     return builder.build()

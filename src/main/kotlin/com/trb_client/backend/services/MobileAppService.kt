@@ -29,7 +29,7 @@ class MobileAppService(
     override fun changeMobileTheme(request: MobileTheme, responseObserver: StreamObserver<MobileTheme>) {
         val userId = UserAuthorizingData.firebaseToken.get()
         themeRepository.changeAppTheme(userId, request.theme == Theme.DARK)
-
+        println("Theme changed to ${request.theme}")
 //        val isThemeDark = themeRepository.getAppTheme(userId)
 
 //        if (theme != null) {

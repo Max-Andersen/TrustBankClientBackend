@@ -9,7 +9,8 @@ package com.trustbank.client_mobile.proto;
 
 message MoneyOperation{
   string accountId = 1;
-  int64 amount = 3;
+  double amount = 3;
+  string currency = 4;
 }
 
 message TransactionHistoryPage{
@@ -23,10 +24,11 @@ message Transaction{
   google.protobuf.Timestamp date = 2;
   Account payer = 3;
   Account payee = 4;
-  int64 amount = 5;
+  double amount = 5;
   TransactionType type = 6;
   TransactionState state = 7;
   TransactionCode code = 8;
+  string currency = 9;
 }
 
 

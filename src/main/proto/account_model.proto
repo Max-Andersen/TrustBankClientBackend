@@ -10,12 +10,13 @@ message Account{
   string id = 1;
   google.protobuf.Timestamp creationDate = 2;
   google.protobuf.Timestamp closingDate = 3;
-  int64 balance = 4;
+  double balance = 4;
   string ownerFullName = 5;
   Client owner = 6;
   AccountType type = 7;
   bool isBlocked = 8;
   bool isHided = 9;
+  string currency = 10;
 }
 
 enum AccountType {

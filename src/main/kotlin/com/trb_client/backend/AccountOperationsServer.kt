@@ -2,6 +2,7 @@ package com.trb_client.backend
 
 import com.trb_client.backend.data.HeaderServerInterceptor
 import com.trb_client.backend.domain.*
+import com.trb_client.backend.kafka.produce.TransactionInitProducer
 import com.trb_client.backend.services.AccountOperationService
 import com.trb_client.backend.services.LoanOperationService
 import com.trb_client.backend.services.MobileAppService
@@ -9,18 +10,35 @@ import com.trb_client.backend.services.UserOperationService
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import io.grpc.ServerInterceptors
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.PropertySource
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.web.reactive.function.client.WebClient
+import javax.annotation.PostConstruct
 
 @Configuration
 @EnableWebSecurity
 @EntityScan(basePackages = ["com.trb_client.backend.data.models"])
-class SecurityConfig : ApplicationContextAware {
+//@PropertySource("classpath:application.properties")
+class SecurityConfig: ApplicationContextAware {
+
+    @Value("\${core_url_spring}")
+    private lateinit var core_url_spring: String
+
+    @Value("\${users_url_spring}")
+    private lateinit var users_url_spring: String
+
+    @Value("\${loan_url_spring}")
+    private lateinit var loan_url_spring: String
+
+    @Value("\${prefs_url_spring}")
+    private lateinit var prefs_url_spring: String
+
 
     private lateinit var context: ApplicationContext
 
@@ -68,23 +86,28 @@ class SecurityConfig : ApplicationContextAware {
 
     @Bean("coreWebClient")
     fun webCoreClient(builder: WebClient.Builder): WebClient {
-        return builder.baseUrl(System.getenv("core_url")).build()
+        return builder.baseUrl(core_url_spring).build()
     }
 
     @Bean("loanWebClient")
     fun webLoanClient(builder: WebClient.Builder): WebClient {
-        return builder.baseUrl(System.getenv("loan_url")).build()
+        return builder.baseUrl(loan_url_spring).build()
     }
 
     @Bean("usersWebClient")
     fun webUsersClient(builder: WebClient.Builder): WebClient {
-        return builder.baseUrl(System.getenv("users_url")).build()
+        return builder.baseUrl(users_url_spring).build()
+    }
+    @Bean("prefsWebClient")
+    fun webPrefsClient(builder: WebClient.Builder): WebClient {
+        return builder.baseUrl(prefs_url_spring).build()
     }
 
     @Bean
     fun coreRequest(): CoreRepository {
         val webClient = context.getBean("coreWebClient", WebClient::class.java)
-        return CoreRepository(webClient)
+        val producer = context.getBean(TransactionInitProducer::class.java)
+        return CoreRepository(webClient, producer)
     }
 
     @Bean
@@ -98,23 +121,33 @@ class SecurityConfig : ApplicationContextAware {
         val webClient = context.getBean("loanWebClient", WebClient::class.java)
         return LoanRepository(webClient)
     }
+
     @Bean
     fun themeRequest(): ThemeRepository {
-        return ThemeRepository()
+        val webClient = context.getBean("prefsWebClient", WebClient::class.java)
+        return ThemeRepository(webClient)
     }
+
     @Bean
     fun hiddenRequest(): HiddenAccountRepository {
-        return HiddenAccountRepository()
+        val webClient = context.getBean("prefsWebClient", WebClient::class.java)
+        return HiddenAccountRepository(webClient)
     }
 
 
     @Bean
-    fun server():AccountOperationsServer{
+    fun server(): AccountOperationsServer {
         val accountOperationService = context.getBean(AccountOperationService::class.java)
         val userOperationService = context.getBean(UserOperationService::class.java)
         val loanOperationService = context.getBean(LoanOperationService::class.java)
         val mobileAccountService = context.getBean(MobileAppService::class.java)
-        return AccountOperationsServer(50051, accountOperationService, userOperationService, loanOperationService, mobileAccountService)
+        return AccountOperationsServer(
+            50051,
+            accountOperationService,
+            userOperationService,
+            loanOperationService,
+            mobileAccountService
+        )
     }
 
     @Bean
@@ -172,9 +205,12 @@ class AccountOperationsServer(
 //        println(db.save(UUID.fromString("8b168a60-dc64-4cc7-bf57-45040d0d8f59"))?.isThemeDark)
 //        println(db.getUserThemeById(UUID.fromString("8b168a60-dc64-4cc7-bf57-45040d0d8f59"))?.isThemeDark)
 
-        println(System.getenv("core_url"))
-        println(System.getenv("loan_url"))
-        println(System.getenv("users_url"))
+//        println(System.getenv("core_url"))
+//        println(System.getenv("loan_url"))
+//        println(System.getenv("users_url"))
+
+
+        println()
     }
 
 

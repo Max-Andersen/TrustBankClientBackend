@@ -1,17 +1,22 @@
 package com.trb_client.backend.domain
 
+import com.trb_client.backend.kafka.produce.TransactionInit
+import com.trb_client.backend.kafka.produce.TransactionInitProducer
 import com.trb_client.backend.models.AccountType
+import com.trb_client.backend.models.request.Currency
 import com.trb_client.backend.models.request.NewAccountRequest
 import com.trb_client.backend.models.request.TransferMoneyRequest
 import com.trb_client.backend.models.request.UnidirectionalTransactionRequest
 import com.trb_client.backend.models.response.AccountResponse
 import com.trb_client.backend.models.response.Transaction
 import com.trb_client.backend.models.response.TransactionHistoryPage
+import com.trb_client.backend.models.response.TransactionType
 import org.springframework.web.reactive.function.client.WebClient
 import java.util.*
 
 class CoreRepository(
-    private val webClient: WebClient
+    private val webClient: WebClient,
+    private val transactionInitProducer: TransactionInitProducer
 ) {
     private val baseSubCoreUrl = "/api/v1/"
 
@@ -23,7 +28,8 @@ class CoreRepository(
             amount
         )
         val response =
-            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(Transaction::class.java) }.block()
+            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(Transaction::class.java) }
+                .block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
@@ -35,27 +41,40 @@ class CoreRepository(
         throw Exception("Transfer response is null or not successful")
     }
 
-    fun withdrawMoney(accountId: UUID, amount: Long): Boolean {
-        val url = "${baseSubCoreUrl}transactions/withdrawal"
-        val requestModel = UnidirectionalTransactionRequest(accountId, amount)
-        val response =
-            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.block()
+    fun withdrawMoney(accountId: UUID, amount: Double, currency: String): Boolean {
+//        val url = "${baseSubCoreUrl}transactions/withdrawal"
+//        val requestModel = UnidirectionalTransactionRequest(accountId, amount)
+//        val response =
+//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.block()
+//
+//        return response?.statusCode?.is2xxSuccessful ?: throw Exception("Response is null or not successful")
+        val uuid = UUID.randomUUID()
+        val transactionInit =
+            TransactionInit(accountId, null, amount, Currency.valueOf(currency) , TransactionType.WITHDRAWAL)
+        transactionInitProducer.sendMessage(uuid, transactionInit)
 
-        return response?.statusCode?.is2xxSuccessful ?: throw Exception("Response is null or not successful")
+        return true
     }
 
-    fun depositMoney(accountId: UUID, amount: Long): Boolean {
-        val url = "${baseSubCoreUrl}transactions/replenishment"
-        val requestModel = UnidirectionalTransactionRequest(accountId, amount)
-        val response =
-            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.block()
+    fun depositMoney(accountId: UUID, amount: Double, currency: String): Boolean {
+//        val url = "${baseSubCoreUrl}transactions/replenishment"
+//        val requestModel = UnidirectionalTransactionRequest(accountId, amount)
+//        val response =
+//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.block()
 
-        return response?.statusCode?.is2xxSuccessful ?: throw Exception("Response is null or not successful")
+        val uuid = UUID.randomUUID()
+        val transactionInit =
+            TransactionInit(null, accountId, amount, Currency.valueOf(currency) , TransactionType.REPLENISHMENT)
+        transactionInitProducer.sendMessage(uuid, transactionInit)
+
+        return true
+//        return response?.statusCode?.is2xxSuccessful ?: throw Exception("Response is null or not successful")
     }
 
-    fun createAccount(clientId: UUID, clientFullName: String, accountType: AccountType): AccountResponse {
+    fun createAccount(clientId: UUID, clientFullName: String, currency: String, accountType: AccountType): AccountResponse {
         val url = "${baseSubCoreUrl}accounts"
-        val requestModel = NewAccountRequest(accountType, clientFullName, clientId)
+        val requestModel =
+            NewAccountRequest(type = accountType, currency = Currency.valueOf(currency), clientFullName = clientFullName, externalClientId = clientId)
         val response =
             webClient.post().uri(url).bodyValue(requestModel)
                 .exchangeToMono { it.toEntity(AccountResponse::class.java) }.block()

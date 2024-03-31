@@ -19,6 +19,8 @@ fun AccountResponse.toGrpc(owner: Client?, isHide: Boolean = false): Account? {
         .setBalance(balance)
         .setOwnerFullName(clientFullName)
         .setIsBlocked(isClosed ?: false)
+        .setIsHided(isHide)
+        .setCurrency(currency.toString())
 
     owner?.let {
         builder.setOwner(it)

@@ -17,9 +17,10 @@ class HeaderServerInterceptor : ServerInterceptor {
 
         val clientToken = requestHeaders.get(GrpcMetadata.Key.of("client_id_header", GrpcMetadata.ASCII_STRING_MARSHALLER)).toString()
 
-        val userUid = FirebaseAuth.getInstance().verifyIdToken(clientToken).uid
-
-        UserAuthorizingData.id.set(userUid)
+        val userId = FirebaseAuth.getInstance().verifyIdToken(clientToken).claims?.get("id") as? String ?: ""
+        println(userId)
+        println(FirebaseAuth.getInstance().verifyIdToken(clientToken).claims)
+        UserAuthorizingData.id.set(userId)
         UserAuthorizingData.firebaseToken.set(clientToken)
 
         return next.startCall(call, requestHeaders)
