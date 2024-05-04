@@ -7,8 +7,8 @@ import java.util.*
 
 data class LoanRequestResponse (
     val id: UUID? = null,
-    val creationDate: Date? = null,
-    val updatedDateFinal: Date? = null,
+    val creationDate: String? = null,
+    val updatedDateFinal: String? = null,
     val loanTermInDays: Long,
     val issuedAmount: Double,
     val clientId: UUID? = null,

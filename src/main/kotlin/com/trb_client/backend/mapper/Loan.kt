@@ -19,8 +19,8 @@ import com.trustbank.client_mobile.proto.ShortLoanInfo as ShortLoanInfoGrpc
 
 fun LoanRequestResponse.toGrpc(): LoanRequest = LoanRequest.newBuilder()
     .setId(id.toString())
-    .setCreationDate(Timestamp.newBuilder().setSeconds(creationDate?.time ?: 0))
-    .setUpdatedDateFinal(Timestamp.newBuilder().setSeconds(updatedDateFinal?.time ?: 0))
+    .setCreationDate(Timestamp.newBuilder().setSeconds(creationDate?.toLong() ?: 0))
+    .setUpdatedDateFinal(Timestamp.newBuilder().setSeconds(updatedDateFinal?.toLong() ?: 0))
     .setLoanTermInDays(loanTermInDays)
     .setIssuedAmount(issuedAmount)
     .setClientId(clientId.toString())

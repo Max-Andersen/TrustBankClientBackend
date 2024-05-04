@@ -2,14 +2,13 @@ package com.trb_client.backend.domain
 
 import com.trb_client.backend.models.request.Currency
 import com.trb_client.backend.models.request.LoanRequest
-import com.trb_client.backend.models.response.LoanRequestResponse
-import com.trb_client.backend.models.response.LoanResponse
-import com.trb_client.backend.models.response.ShortLoanInfo
-import com.trb_client.backend.models.response.TariffResponse
+import com.trb_client.backend.models.response.*
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.toEntity
 import org.springframework.web.reactive.function.client.toEntityList
+import java.util.Objects
 import java.util.UUID
+import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
 class LoanRepository(
     private val webClient: WebClient
@@ -73,7 +72,20 @@ class LoanRepository(
                 .queryParam("clientId", clientId)
                 .build()
         }.exchangeToMono { it.toEntityList<ShortLoanInfo>() }.block()
-        
+        println("LOANS -> $response")
+        if (response?.statusCode?.is2xxSuccessful == true) {
+            return response.body ?: throw Exception("Loans not found")
+        }
+        throw Exception("Loans not found")
+    }
+
+    fun getLastCreditRating(clientId: String): CreditRatingDto{
+        val response = webClient.get().uri {
+            it.path("${baseSubLoanUrl}credit-ratings/last")
+                .queryParam("clientId", clientId)
+                .build()
+        }.exchangeToMono { it.toEntity<CreditRatingDto>() }.block()
+        println("Last credit rating -> ${response?.body}")
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loans not found")
         }
@@ -96,6 +108,7 @@ class LoanRepository(
         val response = webClient.post().uri("${baseSubLoanUrl}loan-applications").bodyValue(request)
             .exchangeToMono {
                 println(it as Any)
+                println(it.toEntity<Any>().toString())
                 it.toEntity<LoanRequestResponse>()
             }.block()
 

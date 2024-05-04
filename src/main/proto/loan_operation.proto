@@ -13,9 +13,19 @@ service LoanOperationService{
 
   rpc CreateLoanRequest(CreateLoanRequestRequest) returns (LoanRequest);
 
+  rpc GetLastCreditRating(RequestLastCreditRating) returns (CreditRating);
+
   rpc GetLoans (GetClientLoansRequest) returns (stream ShortLoanInfo);
 
   rpc GetLoanById(GetLoanByIdRequest) returns (Loan);
+}
+
+message RequestLastCreditRating{
+
+}
+
+message CreditRating{
+  int32 rating = 1;
 }
 
 message GetLoanByIdRequest{

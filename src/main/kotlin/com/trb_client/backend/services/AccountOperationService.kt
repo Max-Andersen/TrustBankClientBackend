@@ -27,22 +27,30 @@ class AccountOperationService(
 ) : AccountOperationServiceGrpc.AccountOperationServiceImplBase() {
 
     override fun getAccounts(request: GetAccountsRequest, responseObserver: StreamObserver<Account>) {
-        val userId = UserAuthorizingData.id.get()
-        val accounts = coreRepository.getClientAccounts(UUID.fromString(userId))
+        try {
+            val userId = UserAuthorizingData.id.get()
+            val accounts = coreRepository.getClientAccounts(UUID.fromString(userId))
+            println("ACCOUNTS -> $accounts")
+            val hidedAccounts = hidedAccountRepository.getHiddenAccounts(UserAuthorizingData.firebaseToken.get())
+            println("HIDED ACCOUNTS -> $hidedAccounts")
 
-        val hidedAccounts =
-            listOf<String>() //hidedAccountRepository.getHiddenAccounts(UserAuthorizingData.firebaseToken.get())
 
-        val owner: Client? =
-            if (accounts.isNotEmpty())
-                (userRepository.getClientById(accounts.first().externalClientId.toString())
-                    ?: throw Exception("user not found")).toGrpc()
-            else null
+            val owner: Client? =
+                if (accounts.isNotEmpty())
+                    (userRepository.getClientById(accounts.first().externalClientId.toString())
+                        ?: throw Exception("user not found")).toGrpc()
+                else null
 
-        accounts.forEach { account ->
-            responseObserver.onNext(account.toGrpc(owner, account.id.toString() in hidedAccounts))
+            accounts.forEach { account ->
+                responseObserver.onNext(account.toGrpc(owner, account.id.toString() in hidedAccounts))
+            }
+            responseObserver.onCompleted()
+        } catch (e: Exception){
+            responseObserver.onError(
+                INTERNAL.withDescription("Ошибка получения списка счетов").asRuntimeException()
+            )
         }
-        responseObserver.onCompleted()
+
     }
 
     override fun getAccountInfo(request: GetAccountInfoRequest, responseObserver: StreamObserver<Account>) {
@@ -53,8 +61,7 @@ class AccountOperationService(
             if (userId == accountInfo.externalClientId) {
                 val owner = userRepository.getClientById(accountInfo.externalClientId.toString())
                     ?: throw Exception("user not found")
-                val hidedAccounts =
-                    listOf<String>() //hidedAccountRepository.getHiddenAccounts(UserAuthorizingData.firebaseToken.get())
+                val hidedAccounts = hidedAccountRepository.getHiddenAccounts(UserAuthorizingData.firebaseToken.get())
 
                 val accountResponse = accountInfo.toGrpc(owner.toGrpc(), accountInfo.id.toString() in hidedAccounts)
                 responseObserver.onNext(accountResponse)
@@ -168,7 +175,7 @@ class AccountOperationService(
                 UNAUTHENTICATED.withDescription("Счет принадлежит другому человеку").asRuntimeException()
             )
         }
-        responseObserver.onCompleted()
+//        responseObserver.onCompleted()
 
     }
 
@@ -195,54 +202,61 @@ class AccountOperationService(
         request: GetHistoryOfAccountRequest,
         responseObserver: StreamObserver<Transaction>
     ) {
+        try {
+            val account = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
 
-        val account = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
 
-
-        if (account.externalClientId == UserAuthorizingData.id.get()){
-            try {
-                val page = coreRepository.getAccountHistory(
-                    UUID.fromString(request.accountId),
-                    request.pageNumber,
-                    request.pageSize
-                )
-
-                page.elements.map { transactionItem ->
-                    val payerAccount = transactionItem.payerAccountId?.let {
-                        coreRepository.getAccountInfo(it)
-                    }
-                    val payer = payerAccount?.let {
-                        it.externalClientId?.let { clientId -> userRepository.getClientById(clientId) }
-                    }?.toGrpc()
-                    val payeeAccount = transactionItem.payeeAccountId?.let {
-                        coreRepository.getAccountInfo(it)
-                    }
-                    val payee = payeeAccount?.let {
-                        it.externalClientId?.let { clientId -> userRepository.getClientById(clientId) }
-                    }?.toGrpc()
-
-                    transactionItem.toGrpc(
-                        payee = payeeAccount?.toGrpc(payee),
-                        payer = payerAccount?.toGrpc(payer)
+            if (account.externalClientId == UserAuthorizingData.id.get()){
+                try {
+                    val page = coreRepository.getAccountHistory(
+                        UUID.fromString(request.accountId),
+                        request.pageNumber,
+                        request.pageSize
                     )
-                }.forEach {
-                    responseObserver.onNext(it)
-                }
 
-                runBlocking {
-                    transactionCallbackConsumer.flow.collect {
-                        println("transaction    " + it)
+                    page.elements.map { transactionItem ->
+                        val payerAccount = transactionItem.payerAccountId?.let {
+                            coreRepository.getAccountInfo(it)
+                        }
+                        val payer = payerAccount?.let {
+                            it.externalClientId?.let { clientId -> userRepository.getClientById(clientId) }
+                        }?.toGrpc()
+                        val payeeAccount = transactionItem.payeeAccountId?.let {
+                            coreRepository.getAccountInfo(it)
+                        }
+                        val payee = payeeAccount?.let {
+                            it.externalClientId?.let { clientId -> userRepository.getClientById(clientId) }
+                        }?.toGrpc()
+
+                        transactionItem.toGrpc(
+                            payee = payeeAccount?.toGrpc(payee),
+                            payer = payerAccount?.toGrpc(payer)
+                        )
+                    }.forEach {
+                        responseObserver.onNext(it)
                     }
-                }
 
-                responseObserver.onCompleted()
-            } catch (e: Exception) {
-                responseObserver.onError(INTERNAL.withDescription("Ошибка получения истории операций").asRuntimeException())
+                    runBlocking {
+                        transactionCallbackConsumer.flow.collect {
+                            println("transaction    " + it)
+                        }
+                    }
+
+                    responseObserver.onCompleted()
+                } catch (e: Exception) {
+                    responseObserver.onError(INTERNAL.withDescription("Ошибка получения истории операций").asRuntimeException())
+                }
+            } else{
+                responseObserver.onError(
+                    UNAUTHENTICATED.withDescription("Счет принадлежит другому человеку").asRuntimeException()
+                )
             }
-        } else{
+        } catch (e: Exception){
             responseObserver.onError(
-                UNAUTHENTICATED.withDescription("Счет принадлежит другому человеку").asRuntimeException()
+                INTERNAL.withDescription("Ошибка получения истории транзакций").asRuntimeException()
             )
         }
+
+
     }
 }
