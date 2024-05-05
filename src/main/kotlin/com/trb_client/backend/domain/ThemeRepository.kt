@@ -16,7 +16,7 @@ class ThemeRepository(
                 it.path("${baseSubPrefsUrl}theme")
                     .queryParam("Token", userToken)
                     .build()
-            }.exchangeToMono { it.toEntity(ThemeDto::class.java) }.block()?.body
+            }.exchangeToMono { it.toEntity(ThemeDto::class.java) }.retry(3).block()?.body
 
         return response?.themeDark ?: false
     }
@@ -24,6 +24,6 @@ class ThemeRepository(
     fun changeAppTheme(userToken: String, isThemeDark: Boolean) {
         val body = ChangeThemeDto(userToken, isThemeDark)
         webClient.put().uri("${baseSubPrefsUrl}theme").bodyValue(body)
-            .retrieve().bodyToMono<ThemeDto>().block()
+            .retrieve().bodyToMono<ThemeDto>().retry(3).block()
     }
 }

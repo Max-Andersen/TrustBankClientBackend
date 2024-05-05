@@ -29,7 +29,7 @@ class CoreRepository(
 //        )
 //        val response =
 //            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(Transaction::class.java) }
-//                .block()
+//                .retry(3).block()
 
         val uuid = UUID.randomUUID()
         val transactionInit =
@@ -50,7 +50,7 @@ class CoreRepository(
 //        val url = "${baseSubCoreUrl}transactions/withdrawal"
 //        val requestModel = UnidirectionalTransactionRequest(accountId, amount)
 //        val response =
-//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.block()
+//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.retry(3).block()
 //
 //        return response?.statusCode?.is2xxSuccessful ?: throw Exception("Response is null or not successful")
         val uuid = UUID.randomUUID()
@@ -65,7 +65,7 @@ class CoreRepository(
 //        val url = "${baseSubCoreUrl}transactions/replenishment"
 //        val requestModel = UnidirectionalTransactionRequest(accountId, amount)
 //        val response =
-//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.block()
+//            webClient.post().uri(url).bodyValue(requestModel).exchangeToMono { it.toEntity(String::class.java) }.retry(3).block()
 
         val uuid = UUID.randomUUID()
         val transactionInit =
@@ -82,7 +82,7 @@ class CoreRepository(
             NewAccountRequest(type = accountType, currency = Currency.valueOf(currency), clientFullName = clientFullName, externalClientId = clientId)
         val response =
             webClient.post().uri(url).bodyValue(requestModel)
-                .exchangeToMono { it.toEntity(AccountResponse::class.java) }.block()
+                .exchangeToMono { it.toEntity(AccountResponse::class.java) }.retry(3).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
@@ -97,7 +97,7 @@ class CoreRepository(
     fun getClientAccounts(clientId: UUID): List<AccountResponse> {
         val url = "${baseSubCoreUrl}users/$clientId/accounts"
         val response =
-            webClient.get().uri(url).exchangeToMono { it.toEntityList(AccountResponse::class.java) }.block()
+            webClient.get().uri(url).exchangeToMono { it.toEntityList(AccountResponse::class.java) }.retry(3).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
@@ -112,7 +112,7 @@ class CoreRepository(
     fun getAccountInfo(accountId: UUID): AccountResponse {
         val url = "${baseSubCoreUrl}accounts/$accountId"
         val response =
-            webClient.get().uri(url).exchangeToMono { it.toEntity(AccountResponse::class.java) }.block()
+            webClient.get().uri(url).exchangeToMono { it.toEntity(AccountResponse::class.java) }.retry(3).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
@@ -127,7 +127,7 @@ class CoreRepository(
     fun closeAccount(accountId: UUID): Boolean {
         val url = "${baseSubCoreUrl}accounts/$accountId"
         val response =
-            webClient.delete().uri(url).exchangeToMono { it.toEntity(String::class.java) }.block()
+            webClient.delete().uri(url).exchangeToMono { it.toEntity(String::class.java) }.retry(3).block()
 
         response?.let {
             return it.statusCode.is2xxSuccessful
@@ -145,7 +145,7 @@ class CoreRepository(
                     .queryParam("page", page)
                     .queryParam("size", pageSize)
                     .build()
-            }.exchangeToMono { it.toEntity(TransactionHistoryPage::class.java) }.block()
+            }.exchangeToMono { it.toEntity(TransactionHistoryPage::class.java) }.retry(3).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {

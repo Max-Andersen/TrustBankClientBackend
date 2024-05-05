@@ -9,12 +9,13 @@ import com.trustbank.client_mobile.proto.*
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import net.devh.boot.grpc.server.service.GrpcService
+import org.springframework.retry.annotation.CircuitBreaker
 
 @GrpcService(interceptors = [HeaderServerInterceptor::class])
 class LoanOperationService(
     private val loanRepository: LoanRepository
 ) : LoanOperationServiceGrpc.LoanOperationServiceImplBase() {
-
+    @CircuitBreaker
     override fun getLoanTariffs(request: GetLoanTariffsRequest, responseObserver: StreamObserver<LoanTariff>) {
         try {
             val loanTariffs = loanRepository.getLoanTariffs()
@@ -27,7 +28,7 @@ class LoanOperationService(
         }
 
     }
-
+    @CircuitBreaker
     override fun createLoanRequest(request: CreateLoanRequestRequest, responseObserver: StreamObserver<LoanRequest>) {
         try {
             val userId = UserAuthorizingData.id.get()
@@ -40,7 +41,7 @@ class LoanOperationService(
         }
 
     }
-
+    @CircuitBreaker
     override fun getLoanRequests(request: GetLoanRequestRequest, responseObserver: StreamObserver<LoanRequest>) {
         try {
             val userId = UserAuthorizingData.id.get()
@@ -53,7 +54,7 @@ class LoanOperationService(
             responseObserver.onError(Status.INTERNAL.withDescription("Ошибка получения запросов на кредиты").asRuntimeException())
         }
     }
-
+    @CircuitBreaker
     override fun getLoans(request: GetClientLoansRequest, responseObserver: StreamObserver<ShortLoanInfo>) {
         try {
             val userId = UserAuthorizingData.id.get()
@@ -67,7 +68,7 @@ class LoanOperationService(
             responseObserver.onError(Status.INTERNAL.withDescription("Ошибка получения кредитов").asRuntimeException())
         }
     }
-
+    @CircuitBreaker
     override fun getLoanById(request: GetLoanByIdRequest, responseObserver: StreamObserver<Loan>) {
         try {
             val loan = loanRepository.getLoanById(request.id)
@@ -80,7 +81,7 @@ class LoanOperationService(
             responseObserver.onError(Status.INTERNAL.withDescription("Ошибка получения детальной информации о кредите").asRuntimeException())
         }
     }
-
+    @CircuitBreaker
     override fun getLastCreditRating(
         request: RequestLastCreditRating,
         responseObserver: StreamObserver<CreditRating>

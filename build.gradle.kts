@@ -75,9 +75,18 @@ dependencies {
 //    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 //    implementation("org.springframework.boot:spring-boot-starter-web")
 //    implementation("org.postgresql:postgresql")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.projectlombok:lombok")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    implementation("org.springframework.retry:spring-retry:2.0.3")
+    implementation("org.springframework:spring-aspects:6.0.11")
 
 
     implementation("com.google.firebase:firebase-admin:8.0.0")
+    implementation("io.github.resilience4j:resilience4j-reactor:1.7.1")
+    implementation("io.github.resilience4j:resilience4j-spring-boot2:1.7.1")
+    implementation("io.github.resilience4j:resilience4j-circuitbreaker:1.7.1")
+
 }
 
 tasks.withType<KotlinCompile> {

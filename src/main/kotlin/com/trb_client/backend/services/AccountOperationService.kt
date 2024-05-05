@@ -15,6 +15,10 @@ import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.runBlocking
 import net.devh.boot.grpc.server.service.GrpcService
 import org.apache.catalina.User
+import org.springframework.retry.annotation.Backoff
+import org.springframework.retry.annotation.CircuitBreaker
+import org.springframework.retry.annotation.Recover
+import org.springframework.retry.annotation.Retryable
 import java.util.*
 
 
@@ -26,6 +30,7 @@ class AccountOperationService(
     val transactionCallbackConsumer: TransactionCallbackConsumer
 ) : AccountOperationServiceGrpc.AccountOperationServiceImplBase() {
 
+    @CircuitBreaker
     override fun getAccounts(request: GetAccountsRequest, responseObserver: StreamObserver<Account>) {
         try {
             val userId = UserAuthorizingData.id.get()
@@ -45,14 +50,14 @@ class AccountOperationService(
                 responseObserver.onNext(account.toGrpc(owner, account.id.toString() in hidedAccounts))
             }
             responseObserver.onCompleted()
-        } catch (e: Exception){
+        } catch (e: Exception) {
             responseObserver.onError(
                 INTERNAL.withDescription("Ошибка получения списка счетов").asRuntimeException()
             )
         }
 
     }
-
+    @CircuitBreaker
     override fun getAccountInfo(request: GetAccountInfoRequest, responseObserver: StreamObserver<Account>) {
         val userId = UserAuthorizingData.id.get()
         try {
@@ -78,7 +83,7 @@ class AccountOperationService(
         }
     }
 
-
+    @CircuitBreaker
     override fun openNewAccount(request: OpenAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
         try {
             val userId = UserAuthorizingData.id.get()
@@ -98,7 +103,7 @@ class AccountOperationService(
             responseObserver.onError(INTERNAL.withDescription("Ошибка создания аккаунта").asRuntimeException())
         }
     }
-
+    @CircuitBreaker
     override fun closeAccount(request: CloseAccountRequest, responseObserver: StreamObserver<OperationResponse>) {
 
         val account = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
@@ -119,7 +124,7 @@ class AccountOperationService(
         responseObserver.onCompleted()
 
     }
-
+    @CircuitBreaker
     override fun transferMoney(request: TransferMoneyRequest, responseObserver: StreamObserver<EmptyResponse>) {
         try {
             val payerAccount = request.fromAccountId?.let {
@@ -158,7 +163,7 @@ class AccountOperationService(
         }
     }
 
-
+    @CircuitBreaker
     override fun depositMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
         val account = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
 
@@ -178,7 +183,7 @@ class AccountOperationService(
 //        responseObserver.onCompleted()
 
     }
-
+    @CircuitBreaker
     override fun withdrawMoney(request: MoneyOperation, responseObserver: StreamObserver<OperationResponse>) {
         val account = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
 
@@ -197,7 +202,7 @@ class AccountOperationService(
         }
 
     }
-
+    @CircuitBreaker
     override fun getHistoryOfAccount(
         request: GetHistoryOfAccountRequest,
         responseObserver: StreamObserver<Transaction>
@@ -206,7 +211,7 @@ class AccountOperationService(
             val account = coreRepository.getAccountInfo(UUID.fromString(request.accountId))
 
 
-            if (account.externalClientId == UserAuthorizingData.id.get()){
+            if (account.externalClientId == UserAuthorizingData.id.get()) {
                 try {
                     val page = coreRepository.getAccountHistory(
                         UUID.fromString(request.accountId),
@@ -244,14 +249,16 @@ class AccountOperationService(
 
                     responseObserver.onCompleted()
                 } catch (e: Exception) {
-                    responseObserver.onError(INTERNAL.withDescription("Ошибка получения истории операций").asRuntimeException())
+                    responseObserver.onError(
+                        INTERNAL.withDescription("Ошибка получения истории операций").asRuntimeException()
+                    )
                 }
-            } else{
+            } else {
                 responseObserver.onError(
                     UNAUTHENTICATED.withDescription("Счет принадлежит другому человеку").asRuntimeException()
                 )
             }
-        } catch (e: Exception){
+        } catch (e: Exception) {
             responseObserver.onError(
                 INTERNAL.withDescription("Ошибка получения истории транзакций").asRuntimeException()
             )

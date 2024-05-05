@@ -14,7 +14,7 @@ class HiddenAccountRepository(
                 it.path("${baseSubPrefsUrl}hidden-accounts")
                     .queryParam("Token", userToken)
                     .build()
-            }.exchangeToMono { it.toEntityList(String::class.java) }.block()?.body
+            }.exchangeToMono { it.toEntityList(String::class.java) }.retry(3).block()?.body
 
         return response ?: emptyList()
     }
@@ -22,13 +22,13 @@ class HiddenAccountRepository(
     fun hideAccount(userToken: String, accountId: String) {
         val body = AccountDto(userToken, accountId)
         webClient.post().uri("${baseSubPrefsUrl}hide-account").bodyValue(body)
-            .retrieve().bodyToMono(Object::class.java).block()
+            .retrieve().bodyToMono(Object::class.java).retry(3).block()
     }
 
     fun showAccount(userToken: String, accountId: String) {
         val body = AccountDto(userToken, accountId)
 
         webClient.post().uri("${baseSubPrefsUrl}show-account").bodyValue(body)
-            .retrieve().bodyToMono(Object::class.java).block()
+            .retrieve().bodyToMono(Object::class.java).retry(3).block()
     }
 }

@@ -17,7 +17,7 @@ class LoanRepository(
 
     fun getLoanTariffs(): List<TariffResponse> {
         val response =
-            webClient.get().uri("${baseSubLoanUrl}tariff").exchangeToMono { it.toEntityList<TariffResponse>() }.block()
+            webClient.get().uri("${baseSubLoanUrl}tariff").exchangeToMono { it.toEntityList<TariffResponse>() }.retry(3).block()
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Tariffs not found")
         }
@@ -30,28 +30,28 @@ class LoanRepository(
                 .queryParam("clientId", clientId)
                 .queryParam("loanApplicationState", "UNDER_CONSIDERATION")
                 .build()
-        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
+        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.retry(3).block()
 
 //        val response_APPROVED = webClient.get().uri {
 //            it.path("${baseSubLoanUrl}loan-applications/by-client")
 //                .queryParam("clientId", clientId)
 //                .queryParam("loanApplicationState", "APPROVED")
 //                .build()
-//        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
+//        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.retry(3).block()
 
         val response_REJECTED = webClient.get().uri {
             it.path("${baseSubLoanUrl}loan-applications/by-client")
                 .queryParam("clientId", clientId)
                 .queryParam("loanApplicationState", "REJECTED")
                 .build()
-        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
+        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.retry(3).block()
 
         val response_FAILED = webClient.get().uri {
             it.path("${baseSubLoanUrl}loan-applications/by-client")
                 .queryParam("clientId", clientId)
                 .queryParam("loanApplicationState", "FAILED")
                 .build()
-        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.block()
+        }.exchangeToMono { it.toEntityList<LoanRequestResponse>() }.retry(3).block()
 
         val allResponses = (
                 (response_UNDER_CONSIDERATION?.body ?: listOf()) +
@@ -71,7 +71,7 @@ class LoanRepository(
             it.path("${baseSubLoanUrl}client-loans")
                 .queryParam("clientId", clientId)
                 .build()
-        }.exchangeToMono { it.toEntityList<ShortLoanInfo>() }.block()
+        }.exchangeToMono { it.toEntityList<ShortLoanInfo>() }.retry(3).block()
         println("LOANS -> $response")
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loans not found")
@@ -84,7 +84,7 @@ class LoanRepository(
             it.path("${baseSubLoanUrl}credit-ratings/last")
                 .queryParam("clientId", clientId)
                 .build()
-        }.exchangeToMono { it.toEntity<CreditRatingDto>() }.block()
+        }.exchangeToMono { it.toEntity<CreditRatingDto>() }.retry(3).block()
         println("Last credit rating -> ${response?.body}")
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loans not found")
@@ -93,7 +93,7 @@ class LoanRepository(
     }
 
     fun getLoanById(loanId: String): LoanResponse {
-        val response = webClient.get().uri("${baseSubLoanUrl}loan/$loanId").exchangeToMono { it.toEntity<LoanResponse>() }.block()
+        val response = webClient.get().uri("${baseSubLoanUrl}loan/$loanId").exchangeToMono { it.toEntity<LoanResponse>() }.retry(3).block()
 
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loan not found")
@@ -110,7 +110,7 @@ class LoanRepository(
                 println(it as Any)
                 println(it.toEntity<Any>().toString())
                 it.toEntity<LoanRequestResponse>()
-            }.block()
+            }.retry(3).block()
 
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body ?: throw Exception("Loan not created")

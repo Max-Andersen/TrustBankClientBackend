@@ -11,11 +11,13 @@ import com.trustbank.client_mobile.proto.UserOperationServiceGrpc
 import io.grpc.Status.UNAUTHENTICATED
 import io.grpc.stub.StreamObserver
 import net.devh.boot.grpc.server.service.GrpcService
+import org.springframework.retry.annotation.CircuitBreaker
 
 @GrpcService(interceptors = [HeaderServerInterceptor::class])
 class UserOperationService(
     private val userRepository: UserRepository
 ) : UserOperationServiceGrpc.UserOperationServiceImplBase() {
+    @CircuitBreaker
     override fun login(request: LoginRequest, responseObserver: StreamObserver<Client>) {
         val clientInfo = userRepository.login(request.login, request.password)
         clientInfo?.let {
@@ -24,7 +26,7 @@ class UserOperationService(
             responseObserver.onCompleted()
         } ?: responseObserver.onError(UNAUTHENTICATED.asRuntimeException())
     }
-
+    @CircuitBreaker
     override fun getClientById(request: ClientRequest, responseObserver: StreamObserver<Client>) {
         val userId = UserAuthorizingData.id.get()
         val clientInfo = userRepository.getClientById(userId)
