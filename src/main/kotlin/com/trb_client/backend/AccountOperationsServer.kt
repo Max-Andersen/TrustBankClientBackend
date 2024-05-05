@@ -10,6 +10,8 @@ import com.trb_client.backend.services.UserOperationService
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import io.grpc.ServerInterceptors
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.context.ApplicationContext
@@ -19,6 +21,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.PropertySource
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.web.reactive.function.client.WebClient
+import java.sql.Time
+import java.time.ZonedDateTime
 import javax.annotation.PostConstruct
 
 @Configuration
@@ -141,12 +145,14 @@ class SecurityConfig: ApplicationContextAware {
         val userOperationService = context.getBean(UserOperationService::class.java)
         val loanOperationService = context.getBean(LoanOperationService::class.java)
         val mobileAccountService = context.getBean(MobileAppService::class.java)
+        val logger = context.getBean(Logger::class.java)
         return AccountOperationsServer(
             50051,
             accountOperationService,
             userOperationService,
             loanOperationService,
-            mobileAccountService
+            mobileAccountService,
+            logger
         )
     }
 
@@ -156,6 +162,11 @@ class SecurityConfig: ApplicationContextAware {
         server.start()
         server.blockUntilShutdown()
         return ""
+    }
+
+    @Bean
+    fun logger(): Logger {
+        return LoggerFactory.getLogger(this.javaClass)
     }
 
 //    @Bean
@@ -178,7 +189,8 @@ class AccountOperationsServer(
     private val accountOperationService: AccountOperationService,
     private val userOperationService: UserOperationService,
     private val loanOperationService: LoanOperationService,
-    private val mobileAccountService: MobileAppService
+    private val mobileAccountService: MobileAppService,
+    private val logger: Logger
 ) {
     //    private val accountOperationService: AccountOperationService
     //    private val userOperationService: UserOperationService
@@ -209,8 +221,8 @@ class AccountOperationsServer(
 //        println(System.getenv("loan_url"))
 //        println(System.getenv("users_url"))
 
-
-        println()
+        logger.info("Жоский запуск сервера в ${ZonedDateTime.now()}")
+        println("Жоский запуск сервера в ${ZonedDateTime.now()}")
     }
 
 

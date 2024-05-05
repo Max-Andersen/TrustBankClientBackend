@@ -12,14 +12,15 @@ data class ClientInfo(
     val patronymic: String? = null,
     val birthDate: LocalDate? = null,
     val email: String? = null,
-    val password: String? = null,
     val phoneNumber: String? = null,
+    val isClient: Boolean? = null,
+    val isOfficer: Boolean? = null,
     val address: String? = null,
     val passportNumber: String? = null,
     val passportSeries: String? = null,
     val isBlocked: Boolean = false,
-    val whoBlocked: OfficerInfo? = null,
-    val whoCreated: OfficerInfo? = null,
+    val whoBlocked: ClientInfo? = null,
+    val whoCreated: ClientInfo? = null,
 
     private val sex: Sex? = null
 )

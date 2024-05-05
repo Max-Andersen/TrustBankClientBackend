@@ -2,8 +2,11 @@ package com.trb_client.backend.domain
 
 import com.trb_client.backend.models.request.UserCredentials
 import com.trb_client.backend.models.response.ClientInfo
+import org.slf4j.LoggerFactory
+import org.springframework.retry.annotation.CircuitBreaker
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.toEntity
+import reactor.util.retry.Retry
 import java.util.UUID
 
 class UserRepository(
@@ -11,12 +14,15 @@ class UserRepository(
 ) {
     private val baseSubUserUrl = "/api/v1/users/"
 
+    private val logger = LoggerFactory.getLogger(this::class.java)
+
     fun getClientById(id: String): ClientInfo? {
         val response = webClient.get().uri {
             it.path("${baseSubUserUrl}client-info")
                 .queryParam("clientId", UUID.fromString(id))
                 .build()
-        }.exchangeToMono { it.toEntity<ClientInfo>() }.retry(3).block()
+        }.exchangeToMono { it.toEntity<ClientInfo>() }.retryWhen(
+            Retry.max(8).doBeforeRetry { x -> logger.info("Retrying get client info " + x.totalRetries()) }).block()
 
         if (response?.statusCode?.is2xxSuccessful == true) {
             return response.body

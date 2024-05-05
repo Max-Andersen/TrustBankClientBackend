@@ -11,7 +11,9 @@ import com.trb_client.backend.models.response.AccountResponse
 import com.trb_client.backend.models.response.Transaction
 import com.trb_client.backend.models.response.TransactionHistoryPage
 import com.trb_client.backend.models.response.TransactionType
+import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.client.WebClient
+import reactor.util.retry.Retry
 import java.util.*
 
 class CoreRepository(
@@ -19,6 +21,9 @@ class CoreRepository(
     private val transactionInitProducer: TransactionInitProducer
 ) {
     private val baseSubCoreUrl = "/api/v1/"
+
+    private val logger = LoggerFactory.getLogger(this::class.java)
+
 
     fun transferMoney(fromAccountId: UUID, toAccountId: UUID, amount: Double, currency: Currency) {
 //        val url = "${baseSubCoreUrl}transactions/account-to-account"
@@ -97,7 +102,8 @@ class CoreRepository(
     fun getClientAccounts(clientId: UUID): List<AccountResponse> {
         val url = "${baseSubCoreUrl}users/$clientId/accounts"
         val response =
-            webClient.get().uri(url).exchangeToMono { it.toEntityList(AccountResponse::class.java) }.retry(3).block()
+            webClient.get().uri(url).exchangeToMono { it.toEntityList(AccountResponse::class.java) }.retryWhen(
+                Retry.max(8).doBeforeRetry { x -> logger.info("Retrying get client accounts " + x.totalRetries()) }).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
@@ -112,7 +118,8 @@ class CoreRepository(
     fun getAccountInfo(accountId: UUID): AccountResponse {
         val url = "${baseSubCoreUrl}accounts/$accountId"
         val response =
-            webClient.get().uri(url).exchangeToMono { it.toEntity(AccountResponse::class.java) }.retry(3).block()
+            webClient.get().uri(url).exchangeToMono { it.toEntity(AccountResponse::class.java) }.retryWhen(
+                Retry.max(8).doBeforeRetry { x -> logger.info("Retrying get account info by id " + x.totalRetries()) }).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
@@ -127,7 +134,8 @@ class CoreRepository(
     fun closeAccount(accountId: UUID): Boolean {
         val url = "${baseSubCoreUrl}accounts/$accountId"
         val response =
-            webClient.delete().uri(url).exchangeToMono { it.toEntity(String::class.java) }.retry(3).block()
+            webClient.delete().uri(url).exchangeToMono { it.toEntity(String::class.java) }.retryWhen(
+                Retry.max(8).doBeforeRetry { x -> logger.info("Retrying close account " + x.totalRetries()) }).block()
 
         response?.let {
             return it.statusCode.is2xxSuccessful
@@ -145,7 +153,8 @@ class CoreRepository(
                     .queryParam("page", page)
                     .queryParam("size", pageSize)
                     .build()
-            }.exchangeToMono { it.toEntity(TransactionHistoryPage::class.java) }.retry(3).block()
+            }.exchangeToMono { it.toEntity(TransactionHistoryPage::class.java) }.retryWhen(
+                Retry.max(8).doBeforeRetry { x -> logger.info("Retrying get account history " + x.totalRetries()) }).block()
 
         response?.let {
             if (it.statusCode.is2xxSuccessful) {
